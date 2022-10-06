@@ -1,3 +1,5 @@
+use clap::Parser;
+
 use std::collections::HashMap;
 use std::env;
 
@@ -5,10 +7,83 @@ use std::fs::File;
 use std::io;
 use std::io::prelude::*;
 
+/// A rust implementation of wc: word, line, character, and byte count.
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    // wc [-clmw] [file ...]
+
+    /// The number of bytes
+    #[arg(short)]
+    cbytes: bool,
+
+    /// Count the number of lines...
+    #[arg(short)]
+    lines: bool,
+
+    /// Count the characters...
+    #[arg(short)]
+    mchars: bool,
+
+    /// Count the words...
+    #[arg(short)]
+    words: bool,
+
+    files: Vec<std::path::PathBuf>,
+}
+
 fn main() {
+    let args = Args::parse();
+    println!("{:?}", args);
+
+    // Why not? See if we can make a vector of hashmaps
+    // it works, in that I can create the vec, but accessing the
+    // hashmap seems to be problematic, in passing to count_words.
+    //let maps: Vec<HashMap<String, i32>> = vec![HashMap::new()];
+
+    // What about a hashmap of hashmaps?
+    let mut maps: HashMap<String, HashMap<String, i32>>;
+
+    let mut lc = 0;
+    // initialize the first HashMap; there will always be 1 minimum
+    // maps.push(HashMap::new());
+
+    if args.files.len() == 0 {
+        // read from stdin
+        println!("No files.");
+    } else {
+        for filename in &args.files {
+            println!("{:?}", filename);
+
+            // create the hashmap for the filename
+            let map = maps.entry(filename.to_string()).or_insert(HashMap::new());
+
+            let file = match File::open(&filename) {
+                Err(why) => panic!("couldn't open: {}", why),
+                Ok(file) => file,
+            };
+            let mut reader = io::BufReader::new(file);
+            let mut buf = String::new();
+            while reader.read_line(&mut buf).unwrap() > 0 {
+                {
+                    // Get the line, and trim the newline
+                    let line = buf.trim_end();
+                    lc += 1;
+
+                    // let mut map = &maps[0];
+                    // count_words(&mut &maps[0], line);
+                }
+                // clear the buffer for the next read
+                buf.clear();
+            }
+
+        }
+        println!("File 0: {:?}", args.files.get(0));
+    }
+
+    // everything below here works
     let filename = env::args().nth(1);
     let mut map: HashMap<String, i32> = HashMap::new();
-    let mut lc = 0;
 
     // check input: a file or stdin?
     match filename {
@@ -40,6 +115,7 @@ fn main() {
             }
         }
     }
+
     println!("word count: {}", map.len());
     println!("line count: {}\n", lc);
 
