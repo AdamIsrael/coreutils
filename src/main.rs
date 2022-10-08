@@ -1,7 +1,9 @@
 use clap::Parser;
-
 use std::collections::HashMap;
-use std::env;
+
+use tabled::{Alignment, Disable, ModifyObject, Style, Table, Tabled};
+use tabled::object::{Columns, Object, Rows, Segment};
+use tabled::locator::ByColumnName;
 
 use std::fs::File;
 use std::io;
@@ -12,24 +14,32 @@ use std::io::prelude::*;
 #[command(author, version, about, long_about = None)]
 struct Args {
     // wc [-clmw] [file ...]
-
-    /// The number of bytes
+    /// The number of bytes in each input file is written to the standard output.
     #[arg(short)]
     cbytes: bool,
 
-    /// Count the number of lines...
+    /// The number of lines in each input file is written to the standard output.
     #[arg(short)]
     lines: bool,
 
-    /// Count the characters...
+    /// The number of characters in each input file is written to the standard output.
     #[arg(short)]
     mchars: bool,
 
-    /// Count the words...
+    /// The number of words in each input file is written to the standard output.
     #[arg(short)]
     words: bool,
 
-    files: Vec<std::path::PathBuf>,
+    files: Vec<String>,
+}
+
+#[derive(Tabled)]
+struct FileStats {
+    lines: i32,
+    words: i32,
+    chars: i32,
+    bytes: i32,
+    filename: String,
 }
 
 fn main() {
@@ -40,24 +50,26 @@ fn main() {
     // it works, in that I can create the vec, but accessing the
     // hashmap seems to be problematic, in passing to count_words.
     //let maps: Vec<HashMap<String, i32>> = vec![HashMap::new()];
+    let mut stats = Vec::<FileStats>::new();
 
     // What about a hashmap of hashmaps?
-    let mut maps: HashMap<String, HashMap<String, i32>>;
+    // I think just create three hashmaps: bc, wc, lc
+    // and key them by filename
+    let mut bc: HashMap<String, i32> = HashMap::new();
+    let mut lc: HashMap<String, i32> = HashMap::new();
+    let mut wc: HashMap<String, i32> = HashMap::new();
 
-    let mut lc = 0;
-    // initialize the first HashMap; there will always be 1 minimum
-    // maps.push(HashMap::new());
+    // let mut maps: HashMap<String, HashMap<String, i32>>;
 
     if args.files.len() == 0 {
         // read from stdin
-        println!("No files.");
+        println!("TODO: read from stdin");
+
+        // let stdin = io::stdin();
+        // for line in stdin.lock().lines() {
+        // }
     } else {
         for filename in &args.files {
-            println!("{:?}", filename);
-
-            // create the hashmap for the filename
-            let map = maps.entry(filename.to_string()).or_insert(HashMap::new());
-
             let file = match File::open(&filename) {
                 Err(why) => panic!("couldn't open: {}", why),
                 Ok(file) => file,
@@ -66,75 +78,107 @@ fn main() {
             let mut buf = String::new();
             while reader.read_line(&mut buf).unwrap() > 0 {
                 {
+                    // increment the byte count
+                    let c = bc.entry(filename.to_string()).or_insert(0);
+                    *c += buf.len() as i32;
+
                     // Get the line, and trim the newline
                     let line = buf.trim_end();
-                    lc += 1;
 
-                    // let mut map = &maps[0];
-                    // count_words(&mut &maps[0], line);
+                    // increment the line count
+                    let c = lc.entry(filename.to_string()).or_insert(0);
+                    *c += 1;
+
+                    // increment the word count
+                    let words = count_words(line);
+                    let c = wc.entry(filename.to_string()).or_insert(0);
+                    *c += words;
                 }
                 // clear the buffer for the next read
                 buf.clear();
             }
 
-        }
-        println!("File 0: {:?}", args.files.get(0));
-    }
-
-    // everything below here works
-    let filename = env::args().nth(1);
-    let mut map: HashMap<String, i32> = HashMap::new();
-
-    // check input: a file or stdin?
-    match filename {
-        None => {
-            // There's no filename, so try reading from stdin
-            let stdin = io::stdin();
-            for line in stdin.lock().lines() {
-                lc += 1;
-                count_words(&mut map, &line.unwrap());
-            }
-        }
-        Some(f) => {
-            let file = match File::open(&f) {
-                Err(why) => panic!("couldn't open: {}", why),
-                Ok(file) => file,
+            let stat = FileStats {
+                chars: 0,
+                bytes: *bc.get(&filename.to_string()).unwrap(),
+                lines: *lc.get(&filename.to_string()).unwrap(),
+                words: *wc.get(&filename.to_string()).unwrap(),
+                filename: filename.to_string(),
             };
 
-            let mut reader = io::BufReader::new(file);
-            let mut buf = String::new();
-            while reader.read_line(&mut buf).unwrap() > 0 {
-                {
-                    // Get the line, and trim the newline
-                    let line = buf.trim_end();
-                    lc += 1;
-                    count_words(&mut map, line);
+            stats.push(stat);
+        }
+
+        // If there are more than one file, display a table of results
+        if args.files.len() > 1 {
+            // Generate the _totals_ and add it to stats
+            let total = FileStats {
+                chars: 0,
+                bytes: bc.values().sum::<i32>(),
+                lines: lc.values().sum::<i32>(),
+                words: wc.values().sum::<i32>(),
+                filename: "total".to_string(),
+            };
+            stats.push(total);
+
+            let mut builder = Table::builder(&stats);
+            // Remove the header row
+            //builder.remove_columns();
+
+            // TODO: check args and remove column(s)
+            let mut table = builder.build();
+
+            // If all args are false, display the whole table.
+            if args.cbytes == false
+                && args.lines == false
+                && args.mchars == false
+                && args.words == false
+            {
+
+            } else {
+                if args.cbytes == false {
+                    println!("Disabling column: {}", "bytes".to_string());
+                    table.with(Disable::column(ByColumnName::new("bytes")));
                 }
-                // clear the buffer for the next read
-                buf.clear();
+                if args.lines == false {
+                    println!("Disabling column: {}", "lines".to_string());
+                    table.with(Disable::column(ByColumnName::new("lines")));
+                }
+                if args.words == false {
+                    println!("Disabling column: {}", "words".to_string());
+                    table.with(Disable::column(ByColumnName::new("words")));
+                }
+                if args.mchars == false {
+                    println!("Disabling column: {}", "chars".to_string());
+                    table.with(Disable::column(ByColumnName::new("chars")));
+                }
             }
+
+            // Remove header row before styling the table
+            table.with(Disable::row(Rows::first()));
+
+            // Stylize the table
+            table
+                .with(Style::blank())
+                // Right align everything but the filename column
+                .with(
+                    Segment::all()
+                        .not(Columns::last())
+                        .modify()
+                        .with(Alignment::right()),
+                );
+
+            println!("{}", table.to_string());
         }
     }
-
-    println!("word count: {}", map.len());
-    println!("line count: {}\n", lc);
-
-    // // Find the top used words
-    // let mut entries: Vec<_> = map.into_iter().collect();
-    // entries.sort_by(|a, b| b.1.cmp(&a.1));
-    // for e in entries.iter().take(10) {
-    //     println!("{} {}", e.0, e.1);
-    // }
 }
 
-fn count_words(map: &mut HashMap<String, i32>, text: &str) {
-    for s in text.split(|c: char| !c.is_alphabetic()) {
-        let word = s.to_lowercase();
-
-        // Skip punctuation or extra spaces
+fn count_words(text: &str) -> i32 {
+    let mut words = 0;
+    for word in text.split(|c: char| c.is_whitespace()) {
         if word.trim().len() > 0 {
-            let c = map.entry(word).or_insert(0);
-            *c += 1;
+            words += 1;
         }
     }
+    words
 }
