@@ -1,5 +1,4 @@
 use clap::Parser;
-use std::collections::HashMap;
 
 use tabled::{Alignment, Disable, ModifyObject, Style, Table, Tabled};
 use tabled::object::{Columns, Object, Rows, Segment};
@@ -48,12 +47,6 @@ fn main() {
 
     let mut stats = Vec::<FileStats>::new();
 
-    // A hashmap of filenames and metric
-    let mut bc: HashMap<String, i32> = HashMap::new(); // byte count
-    let mut cc: HashMap<String, i32> = HashMap::new(); // character count
-    let mut lc: HashMap<String, i32> = HashMap::new(); // line count
-    let mut wc: HashMap<String, i32> = HashMap::new(); // word count
-
     if args.files.len() == 0 {
         // read from stdin
         println!("TODO: read from stdin");
@@ -67,56 +60,42 @@ fn main() {
                 Err(why) => panic!("couldn't open: {}", why),
                 Ok(file) => file,
             };
+
+            let mut stat = FileStats {
+                chars: 0,
+                bytes: 0,
+                lines: 0,
+                words: 0,
+                filename: filename.to_string(),
+            };            
             let mut reader = io::BufReader::new(file);
             let mut buf = String::new();
             while reader.read_line(&mut buf).unwrap() > 0 {
-                {
-                    // increment the byte count
-                    let c = bc.entry(filename.to_string()).or_insert(0);
-                    *c += buf.len() as i32;
+                // Tally the stats
+                count_all(&buf, &mut stat);
 
-                    // increment the _character_ count
-                    let chars: Vec<char> = buf.chars().collect();
-                    let c = cc.entry(filename.to_string()).or_insert(0);
-                    *c += chars.len() as i32;
-
-                    // Get the line, and trim the newline
-                    let line = buf.trim_end();
-
-                    // increment the line count
-                    let c = lc.entry(filename.to_string()).or_insert(0);
-                    *c += 1;
-
-                    // increment the word count
-                    let words = count_words(line);
-                    let c = wc.entry(filename.to_string()).or_insert(0);
-                    *c += words;
-                }
                 // clear the buffer for the next read
                 buf.clear();
             }
-
-            let stat = FileStats {
-                chars: *cc.get(&filename.to_string()).unwrap(),
-                bytes: *bc.get(&filename.to_string()).unwrap(),
-                lines: *lc.get(&filename.to_string()).unwrap(),
-                words: *wc.get(&filename.to_string()).unwrap(),
-                filename: filename.to_string(),
-            };
-
             stats.push(stat);
         }
 
         // If there are more than one file, display a table of results
         if args.files.len() > 1 {
             // Generate the _totals_ and add it to stats
-            let total = FileStats {
+            let mut total = FileStats {
                 chars: 0,
-                bytes: bc.values().sum::<i32>(),
-                lines: lc.values().sum::<i32>(),
-                words: wc.values().sum::<i32>(),
+                bytes: 0,
+                lines: 0,
+                words: 0,
                 filename: "total".to_string(),
             };
+            for stat in &stats {
+                total.chars += stat.chars;
+                total.bytes += stat.bytes;
+                total.lines += stat.lines;
+                total.words += stat.words;
+            }
             stats.push(total);
 
             let mut table = Table::new(&stats);
@@ -163,6 +142,34 @@ fn main() {
             println!("{}", table.to_string());
         }
     }
+}
+
+fn count_all(buf: &str, stat: &mut FileStats) {
+    // increment the byte count
+    // let c = bc.entry(filename.to_string()).or_insert(0);
+    // *c += buf.len() as i32;
+    stat.bytes += buf.len() as i32;
+
+    // increment the _character_ count
+    let chars: Vec<char> = buf.chars().collect();
+    // let c = cc.entry(filename.to_string()).or_insert(0);
+    // *c += chars.len() as i32;
+    stat.chars += chars.len() as i32;
+
+    // Get the line, and trim the newline
+    let line = buf.trim_end();
+
+    // increment the line count
+    // let c = lc.entry(filename.to_string()).or_insert(0);
+    // *c += 1;
+    stat.lines += 1;
+
+    // increment the word count
+    let words = count_words(line);
+    // let c = wc.entry(filename.to_string()).or_insert(0);
+    // *c += words;
+    stat.words += words;
+
 }
 
 fn count_words(text: &str) -> i32 {
