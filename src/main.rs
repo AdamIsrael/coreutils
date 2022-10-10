@@ -187,3 +187,42 @@ fn count_words(text: &str) -> i32 {
     }
     words
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    use std::fs::File;
+    use std::io;
+
+    #[test]
+    fn test_stats() {
+        let mut stats = FileStats {
+            chars: 0,
+            bytes: 0,
+            lines: 0,
+            words: 0,
+            filename: "total".to_string(),
+        };
+        let filename = "data/ipso_old_english.txt".to_string();
+        let file = match File::open(&filename) {
+            Err(why) => panic!("couldn't open: {}", why),
+            Ok(file) => file,
+        };
+        let mut reader = io::BufReader::new(file);
+        let mut buf = String::new();
+        while reader.read_line(&mut buf).unwrap() > 0 {
+            // Tally the stats
+            count_all(&buf, &mut stats);
+
+            // clear the buffer for the next read
+            buf.clear();
+        }
+
+        // Assert that we got the stats we were expecting
+        assert_eq!(stats.bytes, 1783);
+        assert_eq!(stats.chars, 1575);
+        assert_eq!(stats.lines, 9);
+        assert_eq!(stats.words, 253);
+    }
+}
