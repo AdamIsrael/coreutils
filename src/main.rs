@@ -1,8 +1,8 @@
 use clap::Parser;
 
-use tabled::{Alignment, Disable, ModifyObject, Style, Table, Tabled};
-use tabled::object::{Columns, Object, Rows, Segment};
 use tabled::locator::ByColumnName;
+use tabled::object::{Columns, Object, Rows, Segment};
+use tabled::{Alignment, Disable, ModifyObject, Style, Table, Tabled};
 
 use std::fs::File;
 use std::io;
@@ -32,7 +32,7 @@ struct Args {
     files: Vec<String>,
 }
 
-#[derive(Tabled)]
+#[derive(Debug, Tabled)]
 struct FileStats {
     lines: i32,
     words: i32,
@@ -49,11 +49,22 @@ fn main() {
 
     if args.files.len() == 0 {
         // read from stdin
-        println!("TODO: read from stdin");
+        let mut stat = FileStats {
+            chars: 0,
+            bytes: 0,
+            lines: 0,
+            words: 0,
+            filename: "".to_string(),
+        };
 
-        // let stdin = io::stdin();
-        // for line in stdin.lock().lines() {
-        // }
+        let stdin = io::stdin();
+        for line in stdin.lock().lines() {
+            let buf = line.unwrap();
+
+            // Tally the stats
+            count_all(&buf, &mut stat);
+        }
+        stats.push(stat);
     } else {
         for filename in &args.files {
             let file = match File::open(&filename) {
@@ -67,7 +78,7 @@ fn main() {
                 lines: 0,
                 words: 0,
                 filename: filename.to_string(),
-            };            
+            };
             let mut reader = io::BufReader::new(file);
             let mut buf = String::new();
             while reader.read_line(&mut buf).unwrap() > 0 {
@@ -80,7 +91,7 @@ fn main() {
             stats.push(stat);
         }
 
-        // If there are more than one file, display a table of results
+        // If there are more than one file, display a total row
         if args.files.len() > 1 {
             // Generate the _totals_ and add it to stats
             let mut total = FileStats {
@@ -97,51 +108,47 @@ fn main() {
                 total.words += stat.words;
             }
             stats.push(total);
-
-            let mut table = Table::new(&stats);
-
-            // If all args are false, display the whole table.
-            if args.cbytes == false
-                && args.lines == false
-                && args.mchars == false
-                && args.words == false
-            {
-                // By default, don't show characters
-                table.with(Disable::column(ByColumnName::new("chars")));
-
-            } else {
-                // Disable columns based on argument
-                if args.cbytes == false {
-                    table.with(Disable::column(ByColumnName::new("bytes")));
-                }
-                if args.lines == false {
-                    table.with(Disable::column(ByColumnName::new("lines")));
-                }
-                if args.words == false {
-                    table.with(Disable::column(ByColumnName::new("words")));
-                }
-                if args.mchars == false {
-                    table.with(Disable::column(ByColumnName::new("chars")));
-                }
-            }
-
-            // Remove header row before styling the table
-            table.with(Disable::row(Rows::first()));
-
-            // Stylize the table
-            table
-                .with(Style::blank())
-                // Right align everything but the filename column
-                .with(
-                    Segment::all()
-                        .not(Columns::last())
-                        .modify()
-                        .with(Alignment::right()),
-                );
-
-            println!("{}", table.to_string());
         }
     }
+
+    // Display the output
+    let mut table = Table::new(&stats);
+
+    // If all args are false, display the whole table.
+    if args.cbytes == false && args.lines == false && args.mchars == false && args.words == false {
+        // By default, don't show characters
+        table.with(Disable::column(ByColumnName::new("chars")));
+    } else {
+        // Disable columns based on argument
+        if args.cbytes == false {
+            table.with(Disable::column(ByColumnName::new("bytes")));
+        }
+        if args.lines == false {
+            table.with(Disable::column(ByColumnName::new("lines")));
+        }
+        if args.words == false {
+            table.with(Disable::column(ByColumnName::new("words")));
+        }
+        if args.mchars == false {
+            table.with(Disable::column(ByColumnName::new("chars")));
+        }
+    }
+
+    // Remove header row before styling the table
+    table.with(Disable::row(Rows::first()));
+
+    // Stylize the table
+    table
+        .with(Style::blank())
+        // Right align everything but the filename column
+        .with(
+            Segment::all()
+                .not(Columns::last())
+                .modify()
+                .with(Alignment::right()),
+        );
+
+    println!("{}", table.to_string());
 }
 
 fn count_all(buf: &str, stat: &mut FileStats) {
@@ -169,7 +176,6 @@ fn count_all(buf: &str, stat: &mut FileStats) {
     // let c = wc.entry(filename.to_string()).or_insert(0);
     // *c += words;
     stat.words += words;
-
 }
 
 fn count_words(text: &str) -> i32 {
