@@ -44,22 +44,15 @@ struct FileStats {
 
 fn main() {
     let args = Args::parse();
-    println!("{:?}", args);
+    // println!("{:?}", args);
 
-    // Why not? See if we can make a vector of hashmaps
-    // it works, in that I can create the vec, but accessing the
-    // hashmap seems to be problematic, in passing to count_words.
-    //let maps: Vec<HashMap<String, i32>> = vec![HashMap::new()];
     let mut stats = Vec::<FileStats>::new();
 
-    // What about a hashmap of hashmaps?
-    // I think just create three hashmaps: bc, wc, lc
-    // and key them by filename
-    let mut bc: HashMap<String, i32> = HashMap::new();
-    let mut lc: HashMap<String, i32> = HashMap::new();
-    let mut wc: HashMap<String, i32> = HashMap::new();
-
-    // let mut maps: HashMap<String, HashMap<String, i32>>;
+    // A hashmap of filenames and metric
+    let mut bc: HashMap<String, i32> = HashMap::new(); // byte count
+    let mut cc: HashMap<String, i32> = HashMap::new(); // character count
+    let mut lc: HashMap<String, i32> = HashMap::new(); // line count
+    let mut wc: HashMap<String, i32> = HashMap::new(); // word count
 
     if args.files.len() == 0 {
         // read from stdin
@@ -82,6 +75,11 @@ fn main() {
                     let c = bc.entry(filename.to_string()).or_insert(0);
                     *c += buf.len() as i32;
 
+                    // increment the _character_ count
+                    let chars: Vec<char> = buf.chars().collect();
+                    let c = cc.entry(filename.to_string()).or_insert(0);
+                    *c += chars.len() as i32;
+
                     // Get the line, and trim the newline
                     let line = buf.trim_end();
 
@@ -99,7 +97,7 @@ fn main() {
             }
 
             let stat = FileStats {
-                chars: 0,
+                chars: *cc.get(&filename.to_string()).unwrap(),
                 bytes: *bc.get(&filename.to_string()).unwrap(),
                 lines: *lc.get(&filename.to_string()).unwrap(),
                 words: *wc.get(&filename.to_string()).unwrap(),
@@ -122,8 +120,6 @@ fn main() {
             stats.push(total);
 
             let mut builder = Table::builder(&stats);
-            // Remove the header row
-            //builder.remove_columns();
 
             // TODO: check args and remove column(s)
             let mut table = builder.build();
@@ -134,22 +130,21 @@ fn main() {
                 && args.mchars == false
                 && args.words == false
             {
+                // By default, don't show characters
+                table.with(Disable::column(ByColumnName::new("chars")));
 
             } else {
+                // Disable columns based on argument
                 if args.cbytes == false {
-                    println!("Disabling column: {}", "bytes".to_string());
                     table.with(Disable::column(ByColumnName::new("bytes")));
                 }
                 if args.lines == false {
-                    println!("Disabling column: {}", "lines".to_string());
                     table.with(Disable::column(ByColumnName::new("lines")));
                 }
                 if args.words == false {
-                    println!("Disabling column: {}", "words".to_string());
                     table.with(Disable::column(ByColumnName::new("words")));
                 }
                 if args.mchars == false {
-                    println!("Disabling column: {}", "chars".to_string());
                     table.with(Disable::column(ByColumnName::new("chars")));
                 }
             }
