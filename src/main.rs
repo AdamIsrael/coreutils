@@ -119,10 +119,7 @@ fn main() {
             };
             stats.push(total);
 
-            let mut builder = Table::builder(&stats);
-
-            // TODO: check args and remove column(s)
-            let mut table = builder.build();
+            let mut table = Table::new(&stats);
 
             // If all args are false, display the whole table.
             if args.cbytes == false
