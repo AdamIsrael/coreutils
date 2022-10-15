@@ -7,7 +7,12 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "4.0", features = ["derive"] }
+shellexpand = "2.1.2"
 tabled = "0.9.0"
+
+[[bin]]
+name = "dirname"
+path = "src/dirname/main.rs"
 
 [[bin]]
 name = "wc"
