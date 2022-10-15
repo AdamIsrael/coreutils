@@ -33,7 +33,7 @@ This began as, and continues to be, a learning exercise to better understand the
 | df |  |
 | dir |  |
 | dircolors |  |
-| dirname |  |
+| dirname | :white_check_mark: |
 | du |  |
 | echo |  |
 | env |  |
