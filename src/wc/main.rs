@@ -47,7 +47,7 @@ fn main() {
 
     let mut stats = Vec::<FileStats>::new();
 
-    if args.files.len() == 0 {
+    if args.files.is_empty() {
         // read from stdin
         let mut stat = FileStats {
             chars: 0,
@@ -115,21 +115,21 @@ fn main() {
     let mut table = Table::new(&stats);
 
     // If all args are false, display the whole table.
-    if args.cbytes == false && args.lines == false && args.mchars == false && args.words == false {
+    if !args.cbytes && !args.lines && !args.mchars && !args.words {
         // By default, don't show characters
         table.with(Disable::column(ByColumnName::new("chars")));
     } else {
         // Disable columns based on argument
-        if args.cbytes == false {
+        if !args.cbytes {
             table.with(Disable::column(ByColumnName::new("bytes")));
         }
-        if args.lines == false {
+        if !args.lines {
             table.with(Disable::column(ByColumnName::new("lines")));
         }
-        if args.words == false {
+        if !args.words {
             table.with(Disable::column(ByColumnName::new("words")));
         }
-        if args.mchars == false {
+        if !args.mchars {
             table.with(Disable::column(ByColumnName::new("chars")));
         }
     }
@@ -148,40 +148,31 @@ fn main() {
                 .with(Alignment::right()),
         );
 
-    println!("{}", table.to_string());
+    println!("{}", table);
 }
 
 fn count_all(buf: &str, stat: &mut FileStats) {
     // increment the byte count
-    // let c = bc.entry(filename.to_string()).or_insert(0);
-    // *c += buf.len() as i32;
     stat.bytes += buf.len() as i32;
 
     // increment the _character_ count
-    let chars: Vec<char> = buf.chars().collect();
-    // let c = cc.entry(filename.to_string()).or_insert(0);
-    // *c += chars.len() as i32;
-    stat.chars += chars.len() as i32;
+    stat.chars += buf.chars().count() as i32;
 
     // Get the line, and trim the newline
     let line = buf.trim_end();
 
     // increment the line count
-    // let c = lc.entry(filename.to_string()).or_insert(0);
-    // *c += 1;
     stat.lines += 1;
 
     // increment the word count
     let words = count_words(line);
-    // let c = wc.entry(filename.to_string()).or_insert(0);
-    // *c += words;
     stat.words += words;
 }
 
 fn count_words(text: &str) -> i32 {
     let mut words = 0;
     for word in text.split(|c: char| c.is_whitespace()) {
-        if word.trim().len() > 0 {
+        if !word.trim().is_empty() {
             words += 1;
         }
     }
@@ -196,7 +187,7 @@ mod tests {
     use std::io;
 
     #[test]
-    fn test_stats() {
+    fn test_wc() {
         let mut stats = FileStats {
             chars: 0,
             bytes: 0,
