@@ -35,10 +35,9 @@ fn run(args: Args) -> Vec<String> {
         // Got a string and suffix
         let path = shellexpand::tilde(&args.args[0]);
         let suffix = &args.args[1];
-        let basename = &path;
 
         // Get the basename minus the suffix
-        let bms = basename.strip_suffix(&*suffix).unwrap_or(&path);
+        let bms = path.strip_suffix(suffix).unwrap_or(&path);
 
         basenames.push(bms.to_string());
     } else if (args.a || args.args.len() == 1) || args.suffix.is_some() {
@@ -49,7 +48,7 @@ fn run(args: Args) -> Vec<String> {
 
             if args.suffix.is_some() {
                 let suffix = args.suffix.as_ref().unwrap();
-                let bms = basename.strip_suffix(&*suffix).unwrap_or(&basename);
+                let bms = basename.strip_suffix(suffix).unwrap_or(&basename);
                 basenames.push(bms.to_string());
             } else {
                 basenames.push(basename);
