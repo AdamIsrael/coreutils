@@ -1,7 +1,6 @@
 use std::path::MAIN_SEPARATOR;
 
 use clap::Parser;
-use shellexpand;
 
 /// A rust implementation of dirname
 #[derive(Parser, Debug)]
@@ -23,12 +22,12 @@ fn main() {
 }
 
 fn get_dirname(path: &str) -> String {
-    let dirname = match path.rfind(MAIN_SEPARATOR) {
+    match path.rfind(MAIN_SEPARATOR) {
         Some(idx) => {
             if idx == 0 {
                 // The last separator is the first character, making it the dir
                 MAIN_SEPARATOR.to_string()
-            } else if path.starts_with(MAIN_SEPARATOR) == false {
+            } else if !path.starts_with(MAIN_SEPARATOR) {
                 /*
                 if the string doesn't start with the separator, i.e., "foo/"
                 then the dirname is always '.'
@@ -40,8 +39,7 @@ fn get_dirname(path: &str) -> String {
             }
         }
         None => '.'.to_string(),
-    };
-    dirname
+    }
 }
 
 #[cfg(test)]
