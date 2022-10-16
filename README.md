@@ -16,7 +16,7 @@ This began as, and continues to be, a learning exercise to better understand the
 | b2sum |  |
 | base32 |  |
 | base64 |  |
-| basename |  |
+| basename | :white_check_mark: |
 | cat |  |
 | chcon |  |
 | chgrp |  |
