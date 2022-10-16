@@ -1,5 +1,5 @@
 [package]
-name = "wc"
+name = "coreutils"
 version = "0.1.0"
 edition = "2021"
 
@@ -7,8 +7,13 @@ edition = "2021"
 
 [dependencies]
 clap = { version = "4.0", features = ["derive"] }
+platform-info = "1.0.0"
 shellexpand = "2.1.2"
 tabled = "0.9.0"
+
+[[bin]]
+name = "arch"
+path = "src/arch/main.rs"
 
 [[bin]]
 name = "basename"
