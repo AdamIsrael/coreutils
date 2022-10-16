@@ -12,7 +12,7 @@ This began as, and continues to be, a learning exercise to better understand the
 
 | util | status |
 | ---- | ------ |
-| arch |  |
+| arch | :white_check_mark: |
 | b2sum |  |
 | base32 |  |
 | base64 |  |
