@@ -11,6 +11,10 @@ shellexpand = "2.1.2"
 tabled = "0.9.0"
 
 [[bin]]
+name = "basename"
+path = "src/basename/main.rs"
+
+[[bin]]
 name = "dirname"
 path = "src/dirname/main.rs"
 
