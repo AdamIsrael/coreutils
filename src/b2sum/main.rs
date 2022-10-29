@@ -2,21 +2,21 @@ use std::fs::File;
 use std::io;
 use std::io::prelude::*;
 
-use base64ct::{Base64, Encoding};
 use blake2::{Blake2b512, Digest};
 use clap::Parser;
-use hex_literal::hex;
 
 /// Print or check BLAKE2 (512-bit) checksums.
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
+    // There's no difference between --binary and --text on GNU systems, so I'm not
+    // sure how to implement and test this.
     /// read in binary mode
-    #[arg(short)]
+    #[arg(short, long)]
     binary: bool,
 
     /// read BLAKE2 sums from the FILEs and check them
-    #[arg(short)]
+    #[arg(short, long)]
     check: bool,
 
     files: Vec<String>,
@@ -26,8 +26,8 @@ struct Args {
     ignore_missing: bool,
 
     /// digest length in bits; must not exceed the maximum for the blake2 algorithm and must be a multiple of 8
-    #[arg(short)]
-    length: bool,
+    #[arg(short, long, default_value_t = 128)]
+    length: i32,
 
     /// don't print OK for each successfully verified file
     #[arg(long)]
@@ -46,61 +46,91 @@ struct Args {
     tag: bool,
 
     /// read in text mode (default)
-    #[arg(short)]
+    #[arg(short, long)]
     text: bool,
 
     /// warn about improperly formatted files
-    #[arg(short)]
+    #[arg(short, long)]
     warn: bool,
 
     /// end each output line with NUL, not newline, and disable file name escaping
-    #[arg(short)]
+    #[arg(short, long)]
     zero: bool,
+}
+
+struct B2Hash {
+    filename: String,
+    hash: String,
 }
 
 fn main() {
     let args = Args::parse();
-    let checksum = run(args);
+    let checksums = run(&args);
 
-    println!("{}", checksum);
+    for checksum in checksums {
+        if args.check {
+        } else {
+            if args.length == 0 {
+                // print the hex hash
+                println!("{} {}", checksum.hash, checksum.filename);
+            } else if args.length % 8 == 0 {
+                // length must be a multiple of 8
+                let slice = &checksum.hash[..args.length as usize];
+                println!("{} {}", slice, checksum.filename);
+            } else {
+                println!("length ({}) is not a multiple of 8", args.length)
+            }
+        }
+    }
 }
 
-fn run(args: Args) -> String {
+fn run(args: &Args) -> Vec<B2Hash> {
+    let mut retval = Vec::new();
+
+    // TODO: This return type doesn't make sense b/c we could be dealing with
+    // stdin or a vector of files to be read in.
+
     if !args.files.is_empty() {
+        for filename in &args.files {
+            let file = match File::open(&filename) {
+                Err(why) => panic!("couldn't open: {}", why),
+                Ok(file) => file,
+            };
+
+            let mut hasher = Blake2b512::new();
+            let mut reader = io::BufReader::new(file);
+            let mut buf = String::new();
+            while reader.read_line(&mut buf).unwrap() > 0 {
+                // Update the hasher with the next line in the file
+                hasher.update(&buf);
+
+                // clear the buffer for the next read
+                buf.clear();
+            }
+            let res = hasher.finalize();
+
+            retval.push(B2Hash {
+                hash: format!("{:x}", res),
+                filename: filename.to_string(),
+            });
+        }
     } else {
         // read from stdin
         let stdin = io::stdin();
         for line in stdin.lock().lines() {
             let buf = line.unwrap();
-            println!("Buf: {:?}", buf);
-            // let mut hasher = Blake2b512::new();
-            // hasher.update(buf.as_bytes());
 
-            // let res = hasher.finalize();
-            // println!("{:?}", res);
-
+            // Get the result of the b2sum hash
             let res = b2sum(buf);
-            // print the hex hash
-            println!("Res: {:?}", res);
 
-            // assert_eq!(
-            //     res[..],
-            //     hex!(
-            //         "
-            //     021ced8799296ceca557832ab941a50b4a11f83478cf141f51f933f653ab9fbc
-            //     c05a037cddbed06e309bf334942c4e58cdf1a46e237911ccd7fcf9787cbc7fd0
-            // "
-            //     )[..]
-            // );
-
-            // let hash = Black2b::Digest(res);
-            // let mut buf = [0u8; 16];
-            // let hex_hash = base16ct::lower::encode_str(&res, &mut buf);
-            // let hex_hash = hex!(res);
-            // println!("Hex-encoded hash: {:?}", hex_hash);
+            retval.push(B2Hash {
+                hash: res.to_string(),
+                filename: "-".to_string(),
+            });
         }
     }
-    return String::from("foo");
+
+    retval
 }
 
 fn b2sum(buf: String) -> String {
@@ -109,7 +139,7 @@ fn b2sum(buf: String) -> String {
 
     let res = hasher.finalize();
 
-    return format!("{:x}", res);
+    format!("{:x}", res)
 }
 
 #[cfg(test)]
@@ -133,26 +163,4 @@ mod tests {
             "7355dd5276c21cfe0c593b5063b96af3f96a454b33216f58314f44c3ade92e9cd6cec4210a0836246780e9baf927cc50b9a3d7073e8f9bd12780fddbcb930c6d"
         );
     }
-
-    // #[test]
-    // fn test_architecture() {
-
-    //     let args = Args {
-    //         binary: false,
-    //         check: false,
-    //         files: vec![""],
-    //         ignore_missing: false,
-    //         length: false,
-    //         missing: false,
-    //         status: false,
-    //         strict: false,
-    //         tag: false,
-    //         warn: false,
-    //         zero: false,
-    //     };
-
-    //     let basenames = run(args);
-    //     assert_eq!(basenames.len(), 1);
-
-    // }
 }
