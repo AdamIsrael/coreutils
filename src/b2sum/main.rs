@@ -46,7 +46,7 @@ struct Args {
     tag: bool,
 
     /// read in text mode (default)
-    #[arg(short, long)]
+    #[arg(short, long, default_value_t = true)]
     text: bool,
 
     /// warn about improperly formatted files
@@ -69,17 +69,16 @@ fn main() {
 
     for checksum in checksums {
         if args.check {
+            // what do do?
+        } else if args.length == 0 {
+            // print the hex hash
+            println!("{} {}", checksum.hash, checksum.filename);
+        } else if args.length % 8 == 0 {
+            // length must be a multiple of 8
+            let slice = &checksum.hash[..args.length as usize];
+            println!("{} {}", slice, checksum.filename);
         } else {
-            if args.length == 0 {
-                // print the hex hash
-                println!("{} {}", checksum.hash, checksum.filename);
-            } else if args.length % 8 == 0 {
-                // length must be a multiple of 8
-                let slice = &checksum.hash[..args.length as usize];
-                println!("{} {}", slice, checksum.filename);
-            } else {
-                println!("length ({}) is not a multiple of 8", args.length)
-            }
+            println!("length ({}) is not a multiple of 8", args.length)
         }
     }
 }
