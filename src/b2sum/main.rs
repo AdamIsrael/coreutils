@@ -9,12 +9,11 @@ use clap::Parser;
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
 struct Args {
-    // There's no difference between --binary and --text on GNU systems, so I'm not
-    // sure how to implement and test this.
-    /// read in binary mode
-    #[arg(short, long)]
-    binary: bool,
-
+    // // There's no difference between --binary and --text on GNU systems, so I'm not
+    // // sure how to implement and test this.
+    // /// read in binary mode
+    // #[arg(short, long)]
+    // binary: bool,
     /// read BLAKE2 sums from the FILEs and check them
     #[arg(short, long)]
     check: bool,
@@ -45,10 +44,9 @@ struct Args {
     #[arg(long)]
     tag: bool,
 
-    /// read in text mode (default)
-    #[arg(short, long, default_value_t = true)]
-    text: bool,
-
+    // /// read in text mode (default)
+    // #[arg(short, long, default_value_t = true)]
+    // text: bool,
     /// warn about improperly formatted files
     #[arg(short, long)]
     warn: bool,
@@ -65,51 +63,80 @@ struct B2Hash {
 
 fn main() {
     let args = Args::parse();
-    let checksums = run(&args);
 
-    for checksum in checksums {
-        if args.check {
-            // what do do?
-        } else if args.length == 0 {
-            // print the hex hash
-            println!("{} {}", checksum.hash, checksum.filename);
-        } else if args.length % 8 == 0 {
-            // length must be a multiple of 8
-            let slice = &checksum.hash[..args.length as usize];
-            println!("{} {}", slice, checksum.filename);
-        } else {
-            println!("length ({}) is not a multiple of 8", args.length)
-        }
+    if args.check {
+        check(&args);    
+    } else {
+        let checksums = run(&args);
+
+        for checksum in checksums {
+            if args.check {
+                // what do do?
+            } else if args.length == 0 {
+                // print the hex hash
+                println!("{} {}", checksum.hash, checksum.filename);
+            } else if args.length % 8 == 0 {
+                // length must be a multiple of 8
+                let slice = &checksum.hash[..args.length as usize];
+                println!("{} {}", slice, checksum.filename);
+            } else {
+                println!("length ({}) is not a multiple of 8", args.length)
+            }
+        }    
     }
 }
 
+/// Perform the checksum validation
+fn check(args: &Args) {
+    /*
+    read from the file, which will be in the following format (one per line):
+    <b2sum hash> <filename>
+    then hash the filename and compare it to the hash in the file. If they're okay, print:
+    <filename>: OK
+    if the hashes don't match, print:
+    <filename>: FAILED
+    b2sum: WARNING: <n> computed checksum did NOT match
+        */
+    let mut failed = 0;
+
+    for filename in &args.files {
+        let file = match File::open(&filename) {
+            Err(why) => panic!("couldn't open: {}", why),
+            Ok(file) => file,
+        };
+
+        let mut reader = io::BufReader::new(file);
+        let mut buf = String::new();
+        while reader.read_line(&mut buf).unwrap() > 0 {
+
+            let mut iter = buf.split_whitespace();
+            
+            // TODO: There should only be two items
+            let hash = iter.next().unwrap();
+            let filename = iter.next().unwrap();
+
+            let hash2 = b2sum_file(filename.to_string());
+            if hash == hash2 {
+                println!("{}: OK", filename);
+            } else {
+                println!("{}: FAILED", filename);
+                failed += 1;
+            }
+        }
+    }
+    if failed > 0 {
+        println!("b2sum: WARNING: {} computed checksum did NOT match", failed);
+    }
+}
+
+/// Generate a checksum for the specified input
 fn run(args: &Args) -> Vec<B2Hash> {
     let mut retval = Vec::new();
 
-    // TODO: This return type doesn't make sense b/c we could be dealing with
-    // stdin or a vector of files to be read in.
-
     if !args.files.is_empty() {
         for filename in &args.files {
-            let file = match File::open(&filename) {
-                Err(why) => panic!("couldn't open: {}", why),
-                Ok(file) => file,
-            };
-
-            let mut hasher = Blake2b512::new();
-            let mut reader = io::BufReader::new(file);
-            let mut buf = String::new();
-            while reader.read_line(&mut buf).unwrap() > 0 {
-                // Update the hasher with the next line in the file
-                hasher.update(&buf);
-
-                // clear the buffer for the next read
-                buf.clear();
-            }
-            let res = hasher.finalize();
-
             retval.push(B2Hash {
-                hash: format!("{:x}", res),
+                hash: b2sum_file(filename.to_string()),
                 filename: filename.to_string(),
             });
         }
@@ -120,7 +147,7 @@ fn run(args: &Args) -> Vec<B2Hash> {
             let buf = line.unwrap();
 
             // Get the result of the b2sum hash
-            let res = b2sum(buf);
+            let res = b2sum_string(buf);
 
             retval.push(B2Hash {
                 hash: res.to_string(),
@@ -132,7 +159,30 @@ fn run(args: &Args) -> Vec<B2Hash> {
     retval
 }
 
-fn b2sum(buf: String) -> String {
+/// Get the b2sum of a file
+fn b2sum_file(filename: String) -> String {
+    let file = match File::open(&filename) {
+        Err(why) => panic!("couldn't open: {}", why),
+        Ok(file) => file,
+    };
+
+    let mut hasher = Blake2b512::new();
+    let mut reader = io::BufReader::new(file);
+    let mut buf = String::new();
+    while reader.read_line(&mut buf).unwrap() > 0 {
+        // Update the hasher with the next line in the file
+        hasher.update(&buf);
+
+        // clear the buffer for the next read
+        buf.clear();
+    }
+    let res = hasher.finalize();
+
+    format!("{:x}", res)
+}
+
+/// Get the b2sum of a string
+fn b2sum_string(buf: String) -> String {
     let mut hasher = Blake2b512::new();
     hasher.update(buf);
 
