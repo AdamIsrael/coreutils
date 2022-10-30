@@ -133,7 +133,6 @@ fn check(args: &Args) {
 
             // clear the buffer for the next read
             buf.clear();
-
         }
     }
     if failed > 0 {
@@ -209,7 +208,7 @@ mod tests {
 
     #[test]
     fn test_b2sum_hello() {
-        let hash = b2sum(String::from("hello"));
+        let hash = b2sum_string(String::from("hello"));
         assert_eq!(
             &hash,
             "e4cfa39a3d37be31c59609e807970799caa68a19bfaa15135f165085e01d41a65ba1e1b146aeb6bd0092b49eac214c103ccfa3a365954bbbe52f74a2b3620c94"
@@ -218,7 +217,7 @@ mod tests {
 
     #[test]
     fn test_b2sum_hello_world() {
-        let hash = b2sum(String::from("hello, world"));
+        let hash = b2sum_string(String::from("hello, world"));
         assert_eq!(
             &hash,
             "7355dd5276c21cfe0c593b5063b96af3f96a454b33216f58314f44c3ade92e9cd6cec4210a0836246780e9baf927cc50b9a3d7073e8f9bd12780fddbcb930c6d"
