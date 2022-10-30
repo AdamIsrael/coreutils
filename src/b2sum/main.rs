@@ -65,7 +65,7 @@ fn main() {
     let args = Args::parse();
 
     if args.check {
-        check(&args);    
+        check(&args);
     } else {
         let checksums = run(&args);
 
@@ -82,7 +82,7 @@ fn main() {
             } else {
                 println!("length ({}) is not a multiple of 8", args.length)
             }
-        }    
+        }
     }
 }
 
@@ -96,7 +96,7 @@ fn check(args: &Args) {
     if the hashes don't match, print:
     <filename>: FAILED
     b2sum: WARNING: <n> computed checksum did NOT match
-        */
+    */
     let mut failed = 0;
 
     for filename in &args.files {
@@ -108,20 +108,32 @@ fn check(args: &Args) {
         let mut reader = io::BufReader::new(file);
         let mut buf = String::new();
         while reader.read_line(&mut buf).unwrap() > 0 {
-
             let mut iter = buf.split_whitespace();
-            
-            // TODO: There should only be two items
-            let hash = iter.next().unwrap();
-            let filename = iter.next().unwrap();
 
-            let hash2 = b2sum_file(filename.to_string());
+            let hash = match iter.next() {
+                Some(hash) => hash,
+                None => todo!(),
+            };
+            let fname = match iter.next() {
+                Some(fname) => fname,
+                None => todo!(),
+            };
+            // If there's anything else in the iterator, something's wrong
+            // with the file.
+            assert_eq!(None, iter.next());
+
+            // Compare the hashes
+            let hash2 = b2sum_file(fname.to_string());
             if hash == hash2 {
-                println!("{}: OK", filename);
+                println!("{}: OK", fname);
             } else {
-                println!("{}: FAILED", filename);
+                println!("{}: FAILED", fname);
                 failed += 1;
             }
+
+            // clear the buffer for the next read
+            buf.clear();
+
         }
     }
     if failed > 0 {
