@@ -1,7 +1,7 @@
 use std::fs::File;
 use std::io;
-use std::io::ErrorKind;
 use std::io::prelude::*;
+use std::io::ErrorKind;
 
 use blake2::{Blake2b512, Digest};
 use clap::Parser;
@@ -132,10 +132,12 @@ fn check(args: &Args) {
                         println!("b2sum: {}: {}", filename, why);
                     }
                     "".to_string()
-                },
+                }
                 Ok(hash) => hash,
             };
 
+            // TODO: return this information to the caller, so main() can
+            // process it and handle returning the right error code.
             if hash == hash2 {
                 println!("{}: OK", fname);
             } else {
@@ -167,7 +169,7 @@ fn run(args: &Args) -> Vec<B2Hash> {
                         println!("b2sum: {}: {}", filename, why);
                     }
                     "".to_string()
-                },
+                }
                 Ok(hash) => hash,
             };
             retval.push(B2Hash {
@@ -201,7 +203,7 @@ fn b2sum_file(filename: String) -> Result<String, ErrorKind> {
     let file = match File::open(&filename) {
         Err(why) => {
             return Err(why.kind());
-        },
+        }
         Ok(file) => file,
     };
 
