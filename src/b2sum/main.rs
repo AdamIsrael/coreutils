@@ -1,5 +1,6 @@
 use std::fs::File;
 use std::io;
+use std::io::ErrorKind;
 use std::io::prelude::*;
 
 use blake2::{Blake2b512, Digest};
@@ -70,9 +71,7 @@ fn main() {
         let checksums = run(&args);
 
         for checksum in checksums {
-            if args.check {
-                // what do do?
-            } else if args.length == 0 {
+            if args.length == 0 {
                 // print the hex hash
                 println!("{} {}", checksum.hash, checksum.filename);
             } else if args.length % 8 == 0 {
@@ -118,12 +117,25 @@ fn check(args: &Args) {
                 Some(fname) => fname,
                 None => todo!(),
             };
+
             // If there's anything else in the iterator, something's wrong
             // with the file.
             assert_eq!(None, iter.next());
 
-            // Compare the hashes
-            let hash2 = b2sum_file(fname.to_string());
+            let hash2 = match b2sum_file(fname.to_string()) {
+                Err(why) => {
+                    if args.ignore_missing {
+                        // skip this file
+                        buf.clear();
+                        continue;
+                    } else {
+                        println!("b2sum: {}: {}", filename, why);
+                    }
+                    "".to_string()
+                },
+                Ok(hash) => hash,
+            };
+
             if hash == hash2 {
                 println!("{}: OK", fname);
             } else {
@@ -146,8 +158,20 @@ fn run(args: &Args) -> Vec<B2Hash> {
 
     if !args.files.is_empty() {
         for filename in &args.files {
+            let hash = match b2sum_file(filename.to_string()) {
+                Err(why) => {
+                    if args.ignore_missing {
+                        // skip this file
+                        continue;
+                    } else {
+                        println!("b2sum: {}: {}", filename, why);
+                    }
+                    "".to_string()
+                },
+                Ok(hash) => hash,
+            };
             retval.push(B2Hash {
-                hash: b2sum_file(filename.to_string()),
+                hash: hash,
                 filename: filename.to_string(),
             });
         }
@@ -171,9 +195,13 @@ fn run(args: &Args) -> Vec<B2Hash> {
 }
 
 /// Get the b2sum of a file
-fn b2sum_file(filename: String) -> String {
+/// Returns a Result<String, ErrorKind> so that we can surface file errors like
+/// file not found or lack of read permissions.
+fn b2sum_file(filename: String) -> Result<String, ErrorKind> {
     let file = match File::open(&filename) {
-        Err(why) => panic!("couldn't open: {}", why),
+        Err(why) => {
+            return Err(why.kind());
+        },
         Ok(file) => file,
     };
 
@@ -189,8 +217,29 @@ fn b2sum_file(filename: String) -> String {
     }
     let res = hasher.finalize();
 
-    format!("{:x}", res)
+    Ok(format!("{:x}", res))
 }
+
+// fn b2sum_file(filename: String) -> String {
+//     let file = match File::open(&filename) {
+//         Err(why) => panic!("couldn't open: {}", why),
+//         Ok(file) => file,
+//     };
+
+//     let mut hasher = Blake2b512::new();
+//     let mut reader = io::BufReader::new(file);
+//     let mut buf = String::new();
+//     while reader.read_line(&mut buf).unwrap() > 0 {
+//         // Update the hasher with the next line in the file
+//         hasher.update(&buf);
+
+//         // clear the buffer for the next read
+//         buf.clear();
+//     }
+//     let res = hasher.finalize();
+
+//     format!("{:x}", res)
+// }
 
 /// Get the b2sum of a string
 fn b2sum_string(buf: String) -> String {
