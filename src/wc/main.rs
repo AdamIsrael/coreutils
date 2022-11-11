@@ -67,7 +67,7 @@ fn main() {
         stats.push(stat);
     } else {
         for filename in &args.files {
-            let file = match File::open(&filename) {
+            let file = match File::open(filename) {
                 Err(why) => panic!("couldn't open: {}", why),
                 Ok(file) => file,
             };
