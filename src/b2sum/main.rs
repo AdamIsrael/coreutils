@@ -72,17 +72,27 @@ fn main() {
 
         for checksum in checksums {
             if args.length == 0 {
-                // print the hex hash
-                println!("{} {}", checksum.hash, checksum.filename);
+                output_hash(&args, checksum.hash, checksum.filename);
             } else if args.length % 8 == 0 {
                 // length must be a multiple of 8
                 let slice = &checksum.hash[..args.length as usize];
-                println!("{} {}", slice, checksum.filename);
+
+                output_hash(&args, slice.to_string(), checksum.filename);
             } else {
                 println!("length ({}) is not a multiple of 8", args.length)
             }
         }
     }
+}
+
+/// Print the output of a successful hash
+fn output_hash(args: &Args, hash: String, filename: String) {
+    if args.tag {
+        println!("BLAKE2b-{} ({}) = {}", args.length, filename, hash);
+    } else {
+        println!("{} {}", hash, filename);
+    }
+
 }
 
 /// Perform the checksum validation
