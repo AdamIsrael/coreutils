@@ -92,7 +92,6 @@ fn output_hash(args: &Args, hash: String, filename: String) {
     } else {
         println!("{} {}", hash, filename);
     }
-
 }
 
 /// Perform the checksum validation
