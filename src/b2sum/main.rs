@@ -99,7 +99,7 @@ fn check(args: &Args) {
     let mut failed = 0;
 
     for filename in &args.files {
-        let file = match File::open(&filename) {
+        let file = match File::open(filename) {
             Err(why) => panic!("couldn't open: {}", why),
             Ok(file) => file,
         };
@@ -173,7 +173,7 @@ fn run(args: &Args) -> Vec<B2Hash> {
                 Ok(hash) => hash,
             };
             retval.push(B2Hash {
-                hash: hash,
+                hash,
                 filename: filename.to_string(),
             });
         }
