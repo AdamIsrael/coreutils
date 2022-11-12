@@ -158,9 +158,15 @@ fn check(args: &Args) -> i32 {
                     // Skip to the next line
                     buf.clear();
                     continue;
-                } else {
-                    panic!("Invalid file format.");
                 }
+                // If strict, return a non-zero return code
+                if args.strict {
+                    retval = 1;
+
+                    buf.clear();
+                    continue;
+                }
+                panic!("Invalid file format.");
             }
 
             let hash2 = match b2sum_file(fname.to_string()) {
