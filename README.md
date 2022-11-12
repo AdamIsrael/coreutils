@@ -13,7 +13,7 @@ This began as, and continues to be, a learning exercise to better understand the
 | util | status |
 | ---- | ------ |
 | arch | :white_check_mark: |
-| b2sum |  |
+| b2sum | :white_check_mark: |
 | base32 |  |
 | base64 |  |
 | basename | :white_check_mark: |
