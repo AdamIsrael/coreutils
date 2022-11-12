@@ -151,7 +151,17 @@ fn check(args: &Args) -> i32 {
 
             // If there's anything else in the iterator, something's wrong
             // with the file.
-            assert_eq!(None, iter.next());
+            if iter.next().is_some() {
+                if args.warn {
+                    println!("b2sum: WARNING: Listed file could not be read");
+
+                    // Skip to the next line
+                    buf.clear();
+                    continue;
+                } else {
+                    panic!("Invalid file format.");
+                }
+            }
 
             let hash2 = match b2sum_file(fname.to_string()) {
                 Err(why) => {
