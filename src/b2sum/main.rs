@@ -2,9 +2,11 @@ use std::fs::File;
 use std::io;
 use std::io::prelude::*;
 use std::io::ErrorKind;
+use std::process;
 
 use blake2::{Blake2b512, Digest};
 use clap::Parser;
+// use exitcode;
 
 /// Print or check BLAKE2 (512-bit) checksums.
 #[derive(Parser, Debug)]
@@ -63,10 +65,11 @@ struct B2Hash {
 }
 
 fn main() {
+    let mut retcode = 0;
     let args = Args::parse();
 
     if args.check {
-        check(&args);
+        retcode = check(&args);
     } else {
         let checksums = run(&args);
 
@@ -83,6 +86,7 @@ fn main() {
             }
         }
     }
+    process::exit(retcode);
 }
 
 /// Print the output of a successful hash
@@ -95,7 +99,7 @@ fn output_hash(args: &Args, hash: String, filename: String) {
 }
 
 /// Perform the checksum validation
-fn check(args: &Args) {
+fn check(args: &Args) -> i32 {
     /*
     read from the file, which will be in the following format (one per line):
     <b2sum hash> <filename>
@@ -105,6 +109,7 @@ fn check(args: &Args) {
     <filename>: FAILED
     b2sum: WARNING: <n> computed checksum did NOT match
     */
+    let mut retval = 0;
     let mut failed = 0;
 
     for filename in &args.files {
@@ -138,7 +143,7 @@ fn check(args: &Args) {
                         buf.clear();
                         continue;
                     } else {
-                        println!("b2sum: {}: {}", filename, why);
+                        println!("b2sum: {}: {}", fname, why);
                     }
                     "".to_string()
                 }
@@ -148,9 +153,14 @@ fn check(args: &Args) {
             // TODO: return this information to the caller, so main() can
             // process it and handle returning the right error code.
             if hash == hash2 {
-                println!("{}: OK", fname);
+                if !args.quiet && !args.status {
+                    println!("{}: OK", fname);
+                }
             } else {
-                println!("{}: FAILED", fname);
+                if !args.quiet && !args.status {
+                    println!("{}: FAILED", fname);
+                }
+
                 failed += 1;
             }
 
@@ -159,8 +169,12 @@ fn check(args: &Args) {
         }
     }
     if failed > 0 {
-        println!("b2sum: WARNING: {} computed checksum did NOT match", failed);
+        retval = 1;
+        if !args.status {
+            println!("b2sum: WARNING: {} computed checksum did NOT match", failed);
+        }
     }
+    retval
 }
 
 /// Generate a checksum for the specified input
