@@ -2,6 +2,7 @@ use std::fs::File;
 use std::io;
 use std::io::prelude::*;
 use std::io::ErrorKind;
+use std::io::Write;
 use std::process;
 
 use blake2::{Blake2b512, Digest};
@@ -82,7 +83,10 @@ fn main() {
 
                 output_hash(&args, slice.to_string(), checksum.filename);
             } else {
-                println!("length ({}) is not a multiple of 8", args.length)
+                output(
+                    &args,
+                    format!("length ({}) is not a multiple of 8", args.length),
+                );
             }
         }
     }
@@ -92,9 +96,22 @@ fn main() {
 /// Print the output of a successful hash
 fn output_hash(args: &Args, hash: String, filename: String) {
     if args.tag {
-        println!("BLAKE2b-{} ({}) = {}", args.length, filename, hash);
+        output(
+            args,
+            format!("BLAKE2b-{} ({}) = {}", args.length, filename, hash),
+        );
     } else {
-        println!("{} {}", hash, filename);
+        output(args, format!("{} {}", hash, filename));
+    }
+}
+
+/// Output the line with either a newline or NUL
+fn output(args: &Args, line: String) {
+    if args.zero {
+        print!("{}\0", line);
+        io::stdout().flush().unwrap();
+    } else {
+        println!("{}", line);
     }
 }
 
@@ -143,7 +160,7 @@ fn check(args: &Args) -> i32 {
                         buf.clear();
                         continue;
                     } else {
-                        println!("b2sum: {}: {}", fname, why);
+                        output(args, format!("b2sum: {}: {}", fname, why));
                     }
                     "".to_string()
                 }
@@ -154,11 +171,11 @@ fn check(args: &Args) -> i32 {
             // process it and handle returning the right error code.
             if hash == hash2 {
                 if !args.quiet && !args.status {
-                    println!("{}: OK", fname);
+                    output(args, format!("{}: OK", fname));
                 }
             } else {
                 if !args.quiet && !args.status {
-                    println!("{}: FAILED", fname);
+                    output(args, format!("{}: FAILED", fname));
                 }
 
                 failed += 1;
@@ -171,7 +188,10 @@ fn check(args: &Args) -> i32 {
     if failed > 0 {
         retval = 1;
         if !args.status {
-            println!("b2sum: WARNING: {} computed checksum did NOT match", failed);
+            output(
+                args,
+                format!("b2sum: WARNING: {} computed checksum did NOT match", failed),
+            );
         }
     }
     retval
@@ -189,7 +209,7 @@ fn run(args: &Args) -> Vec<B2Hash> {
                         // skip this file
                         continue;
                     } else {
-                        println!("b2sum: {}: {}", filename, why);
+                        output(args, format!("b2sum: {}: {}", filename, why));
                     }
                     "".to_string()
                 }
