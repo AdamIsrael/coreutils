@@ -195,7 +195,7 @@ mod tests {
             words: 0,
             filename: "total".to_string(),
         };
-        let filename = "data/ipso_old_english.txt".to_string();
+        let filename = "../data/ipso_old_english.txt".to_string();
         let file = match File::open(&filename) {
             Err(why) => panic!("couldn't open: {}", why),
             Ok(file) => file,
