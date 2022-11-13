@@ -1,36 +1,11 @@
-[package]
-name = "coreutils"
-version = "0.1.0"
-edition = "2021"
+[workspace]
+members = [
+    "arch",
+    "b2sum",
+    "basename",
+    "dirname",
+    "wc",
+]
 
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
-
-[dependencies]
-base16ct = "0.1.1"
-base64ct = "1.5.2"
-blake2 = "0.10.4"
+[workspace.dependencies]
 clap = { version = "4.0", features = ["derive"] }
-hex-literal = "0.3.4"
-platform-info = "1.0.0"
-shellexpand = "2.1.2"
-tabled = "0.9.0"
-
-[[bin]]
-name = "arch"
-path = "src/arch/main.rs"
-
-[[bin]]
-name = "b2sum"
-path = "src/b2sum/main.rs"
-
-[[bin]]
-name = "basename"
-path = "src/basename/main.rs"
-
-[[bin]]
-name = "dirname"
-path = "src/dirname/main.rs"
-
-[[bin]]
-name = "wc"
-path = "src/wc/main.rs"
