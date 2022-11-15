@@ -112,7 +112,7 @@ This began as, and continues to be, a learning exercise to better understand the
 | uptime |  |
 | users |  |
 | vdir |  |
-| wc |  |
-| who | :white_check_mark: |
+| wc | :white_check_mark: |
+| who | |
 | whoami |  |
 | yes |  |
