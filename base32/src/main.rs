@@ -162,12 +162,12 @@ mod tests {
 
     #[test]
     fn test_ignore_garbage() {
-        let mut input = String::from("NBSWY3DPFQQH
-        O33SNRSA====");
+        let mut input = String::from(
+            "NBSWY3DPFQQH
+        O33SNRSA====",
+        );
 
         ignore_garbage(&mut input);
         assert_eq!("hello, world", decode_base32_string(&input));
-
-
     }
 }
