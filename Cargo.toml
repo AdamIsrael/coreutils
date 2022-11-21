@@ -3,6 +3,7 @@ members = [
     "arch",
     "b2sum",
     "base32",
+    "base64",
     "basename",
     "dirname",
     "wc",
