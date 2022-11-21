@@ -5,7 +5,7 @@ use std::io::ErrorKind;
 use std::process;
 use std::str;
 
-use base64::{encode, decode};
+use base64::{decode, encode};
 use clap::Parser;
 
 #[derive(Parser, Debug)]
