@@ -14,8 +14,8 @@ This began as, and continues to be, a learning exercise to better understand the
 | ---- | ------ |
 | arch | :white_check_mark: |
 | b2sum | :white_check_mark: |
-| base32 |  |
-| base64 |  |
+| base32 | :white_check_mark: |
+| base64 | :white_check_mark: |
 | basename | :white_check_mark: |
 | cat |  |
 | chcon |  |
