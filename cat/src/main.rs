@@ -53,14 +53,19 @@ fn main() {
     let args = Args::parse();
 
     if args.files.is_empty() {
+        let mut ln: i32 = 0;
+
         // read from stdin
         let stdin = io::stdin();
+
         for line in stdin.lock().lines() {
             let buf = line.unwrap();
 
             // print to stdout
-            // println!("{buf}");
-            output(&args, &buf);
+            if args.number_nonblank && !buf.trim().is_empty() {
+                ln += 1;
+            }
+            output(&args, &buf, ln);
         }
     } else {
         for filename in &args.files {
@@ -71,9 +76,14 @@ fn main() {
 
             let mut reader = io::BufReader::new(file);
             let mut buf = String::new();
+            let mut ln: i32 = 0;
+
             while reader.read_line(&mut buf).unwrap() > 0 {
                 // println!("{}", buf.trim_end());
-                output(&args, &buf);
+                if args.number_nonblank && !buf.trim().is_empty() {
+                    ln += 1;
+                }
+                output(&args, &buf, ln);
 
                 // clear the buffer for the next read
                 buf.clear();
@@ -83,7 +93,8 @@ fn main() {
 }
 
 /// Output the string according to stdargs
-fn output(args: &Args, line: &str) {
+// going to have to change this to Vec<str> I think, so we can number lines
+fn output(args: &Args, line: &str, number: i32) {
     let mut s = line.to_owned();
 
     // strip the line ending; we'll add our own
@@ -104,5 +115,21 @@ fn output(args: &Args, line: &str) {
         s = s.replace('\t', "^I");
     }
 
-    println!("{}", s);
+    // show line numbers
+    if args.number && !args.number_nonblank {
+        //     1	build:
+        //     [...]
+        //    10		cp target/release/dungeoncrawl dist
+        // There's 3/4 spaces, right, justified, so we'll need some format! love
+        // to get this right
+        println!("{: >6} {}", number, s);
+    } else if args.number_nonblank {
+        if s.is_empty() {
+            println!();
+        } else {
+            println!("{: >6} {}", number, s);
+        }
+    } else {
+        println!("{}", s);
+    }
 }
