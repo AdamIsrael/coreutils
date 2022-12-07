@@ -50,7 +50,28 @@ struct Args {
     files: Vec<String>,
 }
 fn main() {
-    let args = Args::parse();
+    let mut args = Args::parse();
+
+    // do shortcut: -A
+    if args.show_all {
+        args.show_nonprinting = true;
+        args.show_ends = true;
+        args.show_tabs = true;
+    }
+
+    // do shortcut: -e
+    if args.e {
+        args.show_nonprinting = true;
+        args.show_ends = true;
+    }
+
+    // do shortcut: -t
+    if args.t {
+        args.show_nonprinting = true;
+        args.show_tabs = true;
+    }
+
+    let mut blank: i32 = 0;
 
     if args.files.is_empty() {
         let mut ln: i32 = 0;
@@ -61,11 +82,23 @@ fn main() {
         for line in stdin.lock().lines() {
             let buf = line.unwrap();
 
-            // print to stdout
-            if args.number_nonblank && !buf.trim().is_empty() {
+            if buf.trim().is_empty() {
+                blank += 1;
+            } else {
+                blank = 0;
+            }
+
+            if (args.squeeze_blank && blank >= 1)
+                || (!args.number_nonblank && args.number)
+            {
                 ln += 1;
             }
-            output(&args, &buf, ln);
+
+            // print to stdout
+            // if !args.squeeze_blank || args.squeeze_blank && blank < 1 {
+            if !(args.squeeze_blank && blank >= 1) {
+                output(&args, &buf, ln);
+            }
         }
     } else {
         for filename in &args.files {
@@ -79,11 +112,24 @@ fn main() {
             let mut ln: i32 = 0;
 
             while reader.read_line(&mut buf).unwrap() > 0 {
-                // println!("{}", buf.trim_end());
-                if args.number_nonblank && !buf.trim().is_empty() {
+                if buf.trim().is_empty() {
+                    blank += 1;
+                } else {
+                    blank = 0;
+                }
+
+                // This isn't the prettiest, but it's functional
+                if (args.squeeze_blank && blank >= 1)
+                    || (!args.number_nonblank && args.number)
+                    || (args.number_nonblank && blank == 0)
+                {
                     ln += 1;
                 }
-                output(&args, &buf, ln);
+
+                // print to stdout
+                if !(args.squeeze_blank && blank >= 1) {
+                    output(&args, &buf, ln);
+                }
 
                 // clear the buffer for the next read
                 buf.clear();
