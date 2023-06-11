@@ -103,7 +103,7 @@ fn output(args: &Args, data: String) {
 
 /// Get the base64 of a file
 fn base64_file(args: &Args, filename: String) -> Result<String, ErrorKind> {
-    let buf = match read_to_string(&filename) {
+    let buf = match read_to_string(filename) {
         Err(why) => {
             return Err(why.kind());
         }

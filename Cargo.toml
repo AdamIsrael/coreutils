@@ -4,6 +4,7 @@ members = [
     "b2sum",
     "base32",
     "base64",
+    "cat",
     "basename",
     "dirname",
     "wc",
