@@ -94,8 +94,13 @@ fn main() {
         cat(&mut stdin, &args, &mut line_count, &mut stdout, &mut stderr);
     } else {
         for filename in &args.files {
-            // TODO: match this
-            let mut file = std::fs::File::open(filename).unwrap();
+            let mut file = match std::fs::File::open(filename) {
+                Ok(f) => f,
+                Err(_) => {
+                    println!("cat: {}: No such file or directory", filename);
+                    continue;
+                }
+            };
 
             cat(&mut file, &args, &mut line_count, &mut stdout, &mut stderr);
         }
@@ -124,13 +129,14 @@ fn cat<F: Read>(
         }
 
         for &byte in in_buffer[0..n_read].iter() {
+            // If we're tracking line numbers, this is where we'll print them out
             if character_count == 0
                 && (args.number || (args.number_nonblank && byte != b'\n'))
-                && !last_line_was_blank
             {
                 out_buffer
-                    .write_all(format!("{: >6}  ", line_count).as_bytes())
-                    .unwrap();
+                .write_all(format!("{: >6}  ", line_count).as_bytes())
+                .unwrap();
+
                 last_line_was_blank = true;
             }
 
@@ -146,6 +152,11 @@ fn cat<F: Read>(
                     count_character(&mut character_count, args);
                 }
                 10 => {
+                    // increment the line count when we find a newline
+                    if character_count > 0 || !args.number_nonblank {
+                        *line_count += 1;
+                    }
+
                     if character_count == 0 {
                         if args.squeeze_blank && last_line_was_blank {
                             continue;
@@ -156,7 +167,7 @@ fn cat<F: Read>(
                         last_line_was_blank = false;
                         character_count = 0;
                     }
-                    *line_count += 1;
+
 
                     if args.show_ends {
                         out_buffer.write_all(b"$\n").unwrap();
