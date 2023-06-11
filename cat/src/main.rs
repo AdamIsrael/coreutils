@@ -130,12 +130,10 @@ fn cat<F: Read>(
 
         for &byte in in_buffer[0..n_read].iter() {
             // If we're tracking line numbers, this is where we'll print them out
-            if character_count == 0
-                && (args.number || (args.number_nonblank && byte != b'\n'))
-            {
+            if character_count == 0 && (args.number || (args.number_nonblank && byte != b'\n')) {
                 out_buffer
-                .write_all(format!("{: >6}  ", line_count).as_bytes())
-                .unwrap();
+                    .write_all(format!("{: >6}  ", line_count).as_bytes())
+                    .unwrap();
 
                 last_line_was_blank = true;
             }
@@ -167,7 +165,6 @@ fn cat<F: Read>(
                         last_line_was_blank = false;
                         character_count = 0;
                     }
-
 
                     if args.show_ends {
                         out_buffer.write_all(b"$\n").unwrap();
