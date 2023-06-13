@@ -5,6 +5,7 @@ members = [
     "base32",
     "base64",
     "cat",
+    "chown",
     "basename",
     "dirname",
     "echo",
