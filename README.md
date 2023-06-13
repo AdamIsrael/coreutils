@@ -36,7 +36,7 @@ This began as, and continues to be, a learning exercise to better understand the
 | dirname | :white_check_mark: |
 | du |  |
 | echo | :white_check_mark: |
-| env |  |
+| env | :white_check_mark: |
 | expand |  |
 | expr |  |
 | factor |  |
