@@ -35,7 +35,7 @@ This began as, and continues to be, a learning exercise to better understand the
 | dircolors |  |
 | dirname | :white_check_mark: |
 | du |  |
-| echo |  |
+| echo | :white_check_mark: |
 | env |  |
 | expand |  |
 | expr |  |
