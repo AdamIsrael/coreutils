@@ -116,3 +116,8 @@ This began as, and continues to be, a learning exercise to better understand the
 | who | |
 | whoami |  |
 | yes |  |
+
+
+## Notes
+
+Commands that require the use of syscalls will only work on Linux for the time being; the [syscalls](https://crates.io/crates/syscalls) crate has an [open issue](https://github.com/jasonwhite/syscalls/issues/31) to add support for BSD kernels. 

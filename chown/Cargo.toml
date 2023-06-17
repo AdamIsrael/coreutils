@@ -7,3 +7,5 @@ edition = "2021"
 
 [dependencies]
 syscalls = { version = "0.6.12", features = ["arm", "x86_64"] }
+clap = { workspace = true }
+users = "0.11.0"
