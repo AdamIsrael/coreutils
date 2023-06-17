@@ -8,9 +8,11 @@ A Rust implementation of the stalwart GNU [coreutils](https://github.com/coreuti
 
 This began as, and continues to be, a learning exercise to better understand the [Rust](https://www.rust-lang.org/) programming language. A 100+ program spin on the [Advent of Code](https://en.wikipedia.org/wiki/Advent_of_Code).
 
+I initially started out trying to fully implement every feature of each command, but fatigue set in, and I hit a diminishing point of return. As such, I'm going to implement what I consider to be major features for the initial version of each command. I may work towards feature-complete in the future.
+
 ## Status
 
-| util | status |
+| util | status | syscall |
 | ---- | ------ |
 | arch | :white_check_mark: |
 | b2sum | :white_check_mark: |
