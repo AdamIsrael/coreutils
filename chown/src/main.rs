@@ -6,7 +6,7 @@ use std::os::unix::io::AsRawFd;
 use std::path::Path;
 use syscalls::{syscall, Errno, Sysno};
 
-use clap::{ArgAction, CommandFactory, Parser};
+use clap::Parser;
 use users::{get_group_by_name, get_user_by_name};
 
 #[derive(Clone, Debug)]
@@ -15,78 +15,79 @@ struct UserGroup {
     group: String,
 }
 
+// arg_required_else_help(true), disable_help_flag(true),
 #[derive(Parser, Debug)]
-#[command(author, version, arg_required_else_help(true), disable_help_flag(true), about, long_about = None)]
+#[command(author, version, about, long_about = None)]
 struct Args {
-    /// like verbose but report only when a change is made
-    #[arg(short = 'c', long)]
-    changes: bool,
+    // /// like verbose but report only when a change is made
+    // #[arg(short = 'c', long)]
+    // changes: bool,
 
-    /// suppress most error messages
-    #[arg(short = 'f', long, visible_alias("quiet"))]
-    silent: bool,
+    // /// suppress most error messages
+    // #[arg(short = 'f', long, visible_alias("quiet"))]
+    // silent: bool,
 
-    /// affect the referent of each symbolic link (this is the default), rather than the symbolic link itself
-    #[arg(long, action = ArgAction::SetFalse)]
-    dereference: bool,
+    // /// affect the referent of each symbolic link (this is the default), rather than the symbolic link itself
+    // #[arg(long, action = ArgAction::SetFalse)]
+    // dereference: bool,
 
-    /// affect symbolic links instead of any referenced file
-    /// (useful only on systems that can change the
-    /// ownership of a symlink)   
-    #[arg(short = 'h', long)]
-    no_dereference: bool,
+    // /// affect symbolic links instead of any referenced file
+    // /// (useful only on systems that can change the
+    // /// ownership of a symlink)   
+    // #[arg(short = 'h', long)]
+    // no_dereference: bool,
 
-    /// Display help
-    #[arg(long)]
-    help: bool,
+    // /// Display help
+    // #[arg(long)]
+    // help: bool,
 
-    /// change the owner and/or group of each file only if
-    /// its current owner and/or group match those specified
-    /// here.  Either may be omitted, in which case a match
-    /// is not required for the omitted attribute    
-    #[arg(name(
-        "from=CURRENT_OWNER:CURRENT_GROUP"),
-        long,
-        value_parser = parse_user_group
-    )]
-    from: Option<UserGroup>,
+    // /// change the owner and/or group of each file only if
+    // /// its current owner and/or group match those specified
+    // /// here.  Either may be omitted, in which case a match
+    // /// is not required for the omitted attribute    
+    // #[arg(name(
+    //     "from=CURRENT_OWNER:CURRENT_GROUP"),
+    //     long,
+    //     value_parser = parse_user_group
+    // )]
+    // from: Option<UserGroup>,
 
-    /// do not treat '/' specially (the default)
-    #[arg(long, action = ArgAction::SetFalse)]
-    no_preserve_root: bool,
+    // /// do not treat '/' specially (the default)
+    // #[arg(long, action = ArgAction::SetFalse)]
+    // no_preserve_root: bool,
 
-    /// fail to operate recursively on '/'
-    #[arg(long)]
-    preserve_root: bool,
+    // /// fail to operate recursively on '/'
+    // #[arg(long)]
+    // preserve_root: bool,
 
-    /// use RFILE's owner and group rather than
-    /// specifying OWNER:GROUP values
-    #[arg(name("reference=RFILE"), long)]
-    reference: Option<String>,
+    // /// use RFILE's owner and group rather than
+    // /// specifying OWNER:GROUP values
+    // #[arg(name("reference=RFILE"), long)]
+    // reference: Option<String>,
 
     /// operate on files and directories recursively
     #[arg(short('R'), long)]
     recursive: bool,
 
-    /// The following options modify how a hierarchy is traversed when the -R
-    /// option is also specified.  If more than one is specified, only the final
-    /// one takes effect.
+    // /// The following options modify how a hierarchy is traversed when the -R
+    // /// option is also specified.  If more than one is specified, only the final
+    // /// one takes effect.
 
-    /// if a command line argument is a symbolic link to a directory, traverse it
-    #[arg(short('H'), requires("recursive"))]
-    start_symbolic: bool,
+    // /// if a command line argument is a symbolic link to a directory, traverse it
+    // #[arg(short('H'), requires("recursive"))]
+    // start_symbolic: bool,
 
-    /// traverse every symbolic link to a directory encountered
-    #[arg(short('L'), requires("recursive"))]
-    follow_all_symbolic_links: bool,
+    // /// traverse every symbolic link to a directory encountered
+    // #[arg(short('L'), requires("recursive"))]
+    // follow_all_symbolic_links: bool,
 
-    /// do not traverse any symbolic links (default)
-    #[arg(short('P'), requires("recursive"), action = ArgAction::SetFalse)]
-    do_not_follow: bool,
+    // /// do not traverse any symbolic links (default)
+    // #[arg(short('P'), requires("recursive"), action = ArgAction::SetFalse)]
+    // do_not_follow: bool,
 
-    /// output a diagnostic for every file processed
-    #[arg(short('v'), long)]
-    verbose: bool,
+    // /// output a diagnostic for every file processed
+    // #[arg(short('v'), long)]
+    // verbose: bool,
 
     /// The owner and/or group to change
     #[arg(name("[OWNER][:[GROUP]]"), value_parser = parse_user_group)]
@@ -151,14 +152,6 @@ fn chown(path: &str, uid: u32, gid: Option<u32>) -> Result<usize, Errno> {
 fn main() {
     let args = Args::parse();
 
-    // I don't think this is being reached; Clap is detecting --help and printing
-    // the short help. The only way to get the long help is to run `chown` by itself
-    if args.help {
-        let mut cmd = Args::command();
-        cmd.print_long_help().unwrap();
-        return;
-    }
-
     // Get the uid from the user name
     let user = get_user_by_name(&args.ug.user);
     let uid: u32 = match user {
@@ -192,12 +185,6 @@ fn main() {
                             eprintln!("chown: {}", err);
                         }
                     };
-
-                    // need to return output from `chown` indicating if a change was
-                    // made or if ownership was retained.
-                    if args.verbose {
-                        println!("ownership of 'test.txt' retained as stone:stone");
-                    }
                 }
             } else {
                 match chown(filename, uid, gid) {
