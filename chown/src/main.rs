@@ -1,5 +1,6 @@
 // Note: the syscalls crate doesn't work with bsd/osx yet:
 // https://github.com/jasonwhite/syscalls/issues/31
+use std::fs;
 use std::fs::File;
 use std::os::unix::io::AsRawFd;
 use std::path::Path;
@@ -83,6 +84,10 @@ struct Args {
     #[arg(short('P'), requires("recursive"), action = ArgAction::SetFalse)]
     do_not_follow: bool,
 
+    /// output a diagnostic for every file processed
+    #[arg(short('v'), long)]
+    verbose: bool,
+
     /// The owner and/or group to change
     #[arg(name("[OWNER][:[GROUP]]"), value_parser = parse_user_group)]
     ug: UserGroup,
@@ -106,6 +111,8 @@ fn parse_user_group(arg: &str) -> Result<UserGroup, std::num::ParseIntError> {
 }
 
 /// Change the ownership of a file (Linux-only right now)
+///
+/// TODO: return a better result that indicates if a change was made
 fn chown(path: &str, uid: u32, gid: Option<u32>) -> Result<usize, Errno> {
     let path = Path::new(path);
     let display = path.display();
@@ -165,27 +172,59 @@ fn main() {
     // Get the gid from the group name
     let group = get_group_by_name(&args.ug.group);
     let gid: Option<u32> = group.map(|g| g.gid());
-    // let gid: Option<u32> = match group {
-    //     Some(g) => Some(g.gid()),
-    //     None => None,
-    // };
 
     println!("{}:{:?}", uid, gid);
 
-    // recursive
-    if args.recursive {
-        // walk the directory structure and append each file to args.files
-    }
-
     if !args.files.is_empty() {
         for filename in &args.files {
-            println!("chowning file {}", filename);
-            match chown(filename, uid, gid) {
-                Ok(_) => {}
-                Err(err) => {
-                    eprintln!("chown: {}", err);
+            // Is this file a directory?
+            let md = fs::metadata(filename).unwrap();
+
+            // Only act recursively if we're given a directory
+            if args.recursive && md.is_dir() {
+                let paths = get_paths(filename.to_string());
+                println!("Paths: {:?}", paths);
+
+                for path in paths {
+                    match chown(&path, uid, gid) {
+                        Ok(_) => {}
+                        Err(err) => {
+                            eprintln!("chown: {}", err);
+                        }
+                    };
+
+                    // need to return output from `chown` indicating if a change was
+                    // made or if ownership was retained.
+                    if args.verbose {
+                        println!("ownership of 'test.txt' retained as stone:stone");
+                    }
                 }
-            };
+            } else {
+                match chown(filename, uid, gid) {
+                    Ok(_) => {}
+                    Err(err) => {
+                        eprintln!("chown: {}", err);
+                    }
+                };
+            }
         }
     }
+}
+
+fn get_paths(directory: String) -> Vec<String> {
+    let mut paths: Vec<String> = Vec::new();
+
+    // scan the directory recursively and add all files in it.
+    for entry in fs::read_dir(directory).unwrap() {
+        let entry = entry.unwrap();
+        let path = entry.path();
+        let s_path = path.clone().into_os_string().into_string().unwrap();
+
+        paths.push(s_path.clone());
+
+        if path.is_dir() {
+            paths.append(&mut get_paths(s_path));
+        }
+    }
+    paths
 }
