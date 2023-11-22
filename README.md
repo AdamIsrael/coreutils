@@ -114,5 +114,5 @@ This began as, and continues to be, a learning exercise to better understand the
 | vdir |  |
 | wc | :white_check_mark: |
 | who | |
-| whoami |  |
+| whoami | :white_check_mark: |
 | yes |  |
