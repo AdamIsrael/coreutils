@@ -259,7 +259,7 @@ fn run(args: &Args) -> Vec<B2Hash> {
 /// Returns a Result<String, ErrorKind> so that we can surface file errors like
 /// file not found or lack of read permissions.
 fn b2sum_file(filename: String) -> Result<String, ErrorKind> {
-    let file = match File::open(&filename) {
+    let file = match File::open(filename) {
         Err(why) => {
             return Err(why.kind());
         }
