@@ -9,9 +9,15 @@ members = [
     "dirname",
     "echo",
     "env",
+    "stdlib",
     "wc",
     "whoami",
 ]
 
+resolver = "3"
+
 [workspace.dependencies]
-clap = { version = "4.0", features = ["derive"] }
+clap = { version = "4.0", features = ["cargo", "derive"] }
+serde = { version = "1.0" }
+serde_json = { version = "1.0" }
+tabled = { version = "0.20" }

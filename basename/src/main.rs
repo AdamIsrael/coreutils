@@ -46,8 +46,7 @@ fn run(args: Args) -> Vec<String> {
             let path = shellexpand::tilde(&arg);
             let basename = get_basename(&path);
 
-            if args.suffix.is_some() {
-                let suffix = args.suffix.as_ref().unwrap();
+            if let Some(suffix) = &args.suffix {
                 let bms = basename.strip_suffix(suffix).unwrap_or(&basename);
                 basenames.push(bms.to_string());
             } else {
