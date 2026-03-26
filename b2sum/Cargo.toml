@@ -9,3 +9,4 @@ edition = "2021"
 blake2 = "0.10.4"
 clap = { workspace = true }
 shellexpand = "2.1.2"
+stdlib = { workspace = true }

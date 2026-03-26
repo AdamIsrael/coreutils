@@ -6,59 +6,22 @@ use std::io::Write;
 use std::process;
 
 use blake2::{Blake2b512, Digest};
-use clap::Parser;
-// use exitcode;
+use clap::{arg, Arg, ArgAction};
 
-/// Print or check BLAKE2 (512-bit) checksums.
-#[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
-struct Args {
-    // // There's no difference between --binary and --text on GNU systems, so I'm not
-    // // sure how to implement and test this.
-    // /// read in binary mode
-    // #[arg(short, long)]
-    // binary: bool,
-    /// read BLAKE2 sums from the FILEs and check them
-    #[arg(short, long)]
-    check: bool,
+use stdlib::{clap_args, clap_base_command};
 
-    files: Vec<String>,
-
-    /// don't fail or report status for missing files
-    #[arg(long)]
-    ignore_missing: bool,
-
-    /// digest length in bits; must not exceed the maximum for the blake2 algorithm and must be a multiple of 8
-    #[arg(short, long, default_value_t = 128)]
-    length: i32,
-
-    /// don't print OK for each successfully verified file
-    #[arg(long)]
-    quiet: bool,
-
-    /// don't output anything, status code shows success
-    #[arg(long)]
-    status: bool,
-
-    /// exit non-zero for improperly formatted checksum lines
-    #[arg(long)]
-    strict: bool,
-
-    /// create a BSD-style checksum
-    #[arg(long)]
-    tag: bool,
-
-    // /// read in text mode (default)
-    // #[arg(short, long, default_value_t = true)]
-    // text: bool,
-    /// warn about improperly formatted files
-    #[arg(short, long)]
-    warn: bool,
-
-    /// end each output line with NUL, not newline, and disable file name escaping
-    #[arg(short, long)]
-    zero: bool,
-}
+clap_args!(Args {
+    flag check: bool,
+    flag ignore_missing: bool,
+    value(128) length: i32,
+    flag quiet: bool,
+    flag status: bool,
+    flag strict: bool,
+    flag tag: bool,
+    flag warn: bool,
+    flag zero: bool,
+    multi files: Vec<String>,
+});
 
 struct B2Hash {
     filename: String,
@@ -66,8 +29,21 @@ struct B2Hash {
 }
 
 fn main() {
+    let matches = clap_base_command()
+        .arg(arg!(-c --check "read BLAKE2 sums from the FILEs and check them"))
+        .arg(Arg::new("files").action(ArgAction::Append))
+        .arg(Arg::new("ignore_missing").long("ignore-missing").action(ArgAction::SetTrue).help("ignore missing files"))
+        .arg(arg!(-l --length <LENGTH> "output LENGTH characters of each checksum"))
+        .arg(arg!(--quiet "quiet mode, don't print OK for each successfully verified file"))
+        .arg(arg!(--status "output status only, don't print OK for each successfully verified file"))
+        .arg(arg!(--strict "strict mode, fail if any file fails to verify"))
+        .arg(arg!(--tag "output a BSD-style checksum"))
+        .arg(arg!(-w --warn "warn about improperly formatted files"))
+        .arg(arg!(-z --zero "end each output line with NUL, not newline, and disable file name escaping"))
+        .get_matches();
+
     let mut retcode = 0;
-    let args = Args::parse();
+    let args = Args::from_matches(&matches);
 
     if args.check {
         retcode = check(&args);
@@ -79,6 +55,9 @@ fn main() {
                 output_hash(&args, checksum.hash, checksum.filename);
             } else if args.length % 8 == 0 {
                 // length must be a multiple of 8
+                if checksum.hash.is_empty() {
+                    continue;
+                }
                 let slice = &checksum.hash[..args.length as usize];
 
                 output_hash(&args, slice.to_string(), checksum.filename);
@@ -130,10 +109,13 @@ fn check(args: &Args) -> i32 {
     let mut failed = 0;
 
     for filename in &args.files {
+        println!("opening file {}...", filename);
         let file = match File::open(filename) {
             Err(why) => panic!("couldn't open: {}", why),
             Ok(file) => file,
         };
+
+        println!("reading...");
 
         let mut reader = io::BufReader::new(file);
         let mut buf = String::new();
