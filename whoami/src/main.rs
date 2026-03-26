@@ -8,8 +8,8 @@ fn main() {
     let user = get_user_by_uid(get_current_uid());
     if let Some(u) = user {
         let name = u.name().to_str();
-        if name.is_some() {
-            println!("{}", name.unwrap());
+        if let Some(name) = name {
+            println!("{name}");
         }
     }
 }

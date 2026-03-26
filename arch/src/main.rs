@@ -1,15 +1,34 @@
-use clap::Parser;
 use platform_info::*;
+use serde_json::json;
+use tabled::{builder::Builder, settings::Style};
 
-/// Print machine architecture
-#[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
-struct Args {}
+use stdlib::clap_base_command;
 
 fn main() {
+    let matches = clap_base_command().get_matches();
+
     let arch = run();
 
-    println!("{}", arch);
+    if let Some(output) = matches.get_one::<String>("output") {
+        match output.as_str() {
+            "table" => {
+                let mut builder = Builder::new();
+                builder.push_column(["Architecture"]);
+                builder.push_record([arch]);
+                let mut table = builder.build();
+                println!("{}", table.with(Style::rounded()));
+            }
+            "json" => {
+                let output = json!({
+                    "architecture": arch,
+                });
+
+                println!("{}", serde_json::to_string(&output).unwrap());
+            }
+            "yaml" => println!("architecture: \"{arch}\""),
+            _ => println!("{arch}"),
+        }
+    }
 }
 
 fn run() -> String {
@@ -23,7 +42,7 @@ mod tests {
 
     #[test]
     fn test_architecture() {
-        // assert that we got _a_ architecture back
+        // assert that we got _an_ architecture back
         assert_ne!(run().len(), 0);
     }
 }

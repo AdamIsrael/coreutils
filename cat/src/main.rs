@@ -212,6 +212,6 @@ fn count_character(character_count: &mut usize, args: &Args) {
 }
 
 fn push_caret<T: Write>(stdout: &mut T, _stderr: &mut std::io::StderrLock, notation: u8) {
-    stdout.write_all(&[b'^']).unwrap();
+    stdout.write_all(b"^").unwrap();
     stdout.write_all(&[notation]).unwrap();
 }
