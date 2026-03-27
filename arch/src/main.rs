@@ -2,14 +2,17 @@ use platform_info::*;
 use serde_json::json;
 use tabled::{builder::Builder, settings::Style};
 
-use stdlib::clap_base_command;
+use stdlib::{clap_args, clap_base_command};
+
+clap_args!(Args {});
 
 fn main() {
     let matches = clap_base_command().get_matches();
+    let args = Args::from_matches(&matches);
 
     let arch = run();
 
-    if let Some(output) = matches.get_one::<String>("output") {
+    if let Some(output) = args.output {
         match output.as_str() {
             "table" => {
                 let mut builder = Builder::new();
