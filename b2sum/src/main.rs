@@ -1,12 +1,15 @@
+use std::collections::HashMap;
 use std::fs::File;
 use std::io;
-use std::io::prelude::*;
 use std::io::ErrorKind;
 use std::io::Write;
+use std::io::prelude::*;
 use std::process;
 
 use blake2::{Blake2b512, Digest};
-use clap::{arg, Arg, ArgAction};
+use clap::{Arg, ArgAction, arg};
+// use serde_json::{Map, Value, json};
+use tabled::{builder::Builder, settings::Style};
 
 use stdlib::{clap_args, clap_base_command};
 
@@ -50,9 +53,12 @@ fn main() {
     } else {
         let checksums = run(&args);
 
+        // Collapse the checksums down into a single HashMap
+        let mut map = HashMap::new();
+
         for checksum in checksums {
             if args.length == 0 {
-                output_hash(&args, checksum.hash, checksum.filename);
+                map.insert(checksum.filename, checksum.hash);
             } else if args.length % 8 == 0 {
                 // length must be a multiple of 8
                 if checksum.hash.is_empty() {
@@ -60,38 +66,52 @@ fn main() {
                 }
                 let slice = &checksum.hash[..args.length as usize];
 
-                output_hash(&args, slice.to_string(), checksum.filename);
+                map.insert(checksum.filename, slice.to_string());
             } else {
-                output(
-                    &args,
+                map.insert(
+                    checksum.filename,
                     format!("length ({}) is not a multiple of 8", args.length),
                 );
             }
         }
+
+        // Output the hashes
+        if let Some(output) = &args.output {
+            match output.as_str() {
+                "table" => {
+                    let mut builder = Builder::new();
+                    builder.push_column(["Hash"]);
+                    builder.push_column(["File"]);
+
+                    for file in map {
+                        builder.push_record([file.1, file.0]);
+                    }
+                    let mut table = builder.build();
+                    println!("{}", table.with(Style::rounded()));
+                }
+                "json" => {
+                    println!("{}", serde_json::to_string(&map).unwrap());
+                }
+                "yaml" => {
+                    println!("files:");
+                    for file in map {
+                        println!("  - file: \"{}\"\n    hash: \"{}\"", file.0, file.1);
+                    }
+                }
+                _ => {
+                    for file in map {
+                        if args.zero {
+                            print!("{} {}\0", file.1, file.0);
+                            io::stdout().flush().unwrap();
+                        } else {
+                            println!("{} {}", file.1, file.0);
+                        }
+                    }
+                }
+            }
+        }
     }
     process::exit(retcode);
-}
-
-/// Print the output of a successful hash
-fn output_hash(args: &Args, hash: String, filename: String) {
-    if args.tag {
-        output(
-            args,
-            format!("BLAKE2b-{} ({}) = {}", args.length, filename, hash),
-        );
-    } else {
-        output(args, format!("{} {}", hash, filename));
-    }
-}
-
-/// Output the line with either a newline or NUL
-fn output(args: &Args, line: String) {
-    if args.zero {
-        print!("{}\0", line);
-        io::stdout().flush().unwrap();
-    } else {
-        println!("{}", line);
-    }
 }
 
 /// Perform the checksum validation
@@ -108,14 +128,13 @@ fn check(args: &Args) -> i32 {
     let mut retval = 0;
     let mut failed = 0;
 
+    let mut map = HashMap::new();
+
     for filename in &args.files {
-        println!("opening file {}...", filename);
         let file = match File::open(filename) {
             Err(why) => panic!("couldn't open: {}", why),
             Ok(file) => file,
         };
-
-        println!("reading...");
 
         let mut reader = io::BufReader::new(file);
         let mut buf = String::new();
@@ -148,7 +167,8 @@ fn check(args: &Args) -> i32 {
                     buf.clear();
                     continue;
                 }
-                panic!("Invalid file format.");
+                println!("Invalid file format.");
+                return retval;
             }
 
             let hash2 = match b2sum_file(fname.to_string()) {
@@ -158,24 +178,17 @@ fn check(args: &Args) -> i32 {
                         buf.clear();
                         continue;
                     } else {
-                        output(args, format!("b2sum: {}: {}", fname, why));
+                        map.insert(fname.to_string(), why.to_string());
                     }
                     "".to_string()
                 }
                 Ok(hash) => hash,
             };
 
-            // TODO: return this information to the caller, so main() can
-            // process it and handle returning the right error code.
             if hash == hash2 {
-                if !args.quiet && !args.status {
-                    output(args, format!("{}: OK", fname));
-                }
+                map.insert(fname.to_string(), "OK".to_string());
             } else {
-                if !args.quiet && !args.status {
-                    output(args, format!("{}: FAILED", fname));
-                }
-
+                map.insert(fname.to_string(), "FAILED".to_string());
                 failed += 1;
             }
 
@@ -183,14 +196,47 @@ fn check(args: &Args) -> i32 {
             buf.clear();
         }
     }
+
+    if !args.quiet
+        && !args.status
+        && let Some(output) = &args.output
+    {
+        match output.as_str() {
+            "table" => {
+                let mut builder = Builder::new();
+                builder.push_column(["Status"]);
+                builder.push_column(["File"]);
+
+                for file in map {
+                    builder.push_record([file.1, file.0]);
+                }
+                let mut table = builder.build();
+                println!("{}", table.with(Style::rounded()));
+            }
+            "json" => {
+                println!("{}", serde_json::to_string(&map).unwrap());
+            }
+            "yaml" => {
+                println!("files:");
+                for file in map {
+                    println!("  - file: \"{}\"\n    status: \"{}\"", file.0, file.1);
+                }
+            }
+            _ => {
+                for file in map {
+                    if args.zero {
+                        print!("{} {}\0", file.1, file.0);
+                        io::stdout().flush().unwrap();
+                    } else {
+                        println!("{} {}", file.1, file.0);
+                    }
+                }
+            }
+        }
+    }
+
     if failed > 0 {
         retval = 1;
-        if !args.status {
-            output(
-                args,
-                format!("b2sum: WARNING: {} computed checksum did NOT match", failed),
-            );
-        }
     }
     retval
 }
@@ -207,7 +253,8 @@ fn run(args: &Args) -> Vec<B2Hash> {
                         // skip this file
                         continue;
                     } else {
-                        output(args, format!("b2sum: {}: {}", filename, why));
+                        // TODO: figure out a better way to surface this via the output format?
+                        println!("b2sum: {}: {}", filename, why);
                     }
                     "".to_string()
                 }
