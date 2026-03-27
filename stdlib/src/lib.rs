@@ -17,15 +17,17 @@ macro_rules! clap_args {
         $crate::clap_args!(@parse $name { fields[] rest[$($body)*] });
     };
 
-    // Terminal rule: all fields consumed
+    // Terminal rule: all fields consumed — automatically includes base command fields (output)
     (@parse $name:ident { fields[ $({ $kind:ident $field:ident : $ty:ty [$($default:tt)*] })* ] rest[] }) => {
         struct $name {
+            output: Option<String>,
             $( $field: $ty ),*
         }
 
         impl $name {
             fn from_matches(matches: &::clap::ArgMatches) -> Self {
                 Self {
+                    output: matches.get_one::<String>("output").cloned(),
                     $(
                         $field: $crate::clap_args!(@extract $kind matches $field [$($default)*]),
                     )*
