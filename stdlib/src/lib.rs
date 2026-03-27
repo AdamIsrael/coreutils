@@ -11,6 +11,7 @@ pub fn clap_base_command() -> Command {
 }
 
 #[macro_export]
+/// Macro for parsing clap arguments into a struct.
 macro_rules! clap_args {
     // Entry point
     ($name:ident { $($body:tt)* }) => {
