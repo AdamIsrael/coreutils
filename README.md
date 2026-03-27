@@ -23,7 +23,7 @@ This began as, and continues to be, a learning exercise to better understand the
 | util | status |
 | ---- | ------ |
 | arch | :white_check_mark: |
-| b2sum | :white_large_square: |
+| b2sum | :white_check_mark: |
 | base32 | :white_large_square: |
 | base64 | :white_large_square: |
 | basename | :white_large_square: |
