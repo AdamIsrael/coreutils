@@ -2,7 +2,7 @@ use platform_info::*;
 use serde_json::json;
 use tabled::{builder::Builder, settings::Style};
 
-use stdlib::{clap_args, clap_base_command};
+use coreutils::{clap_args, clap_base_command};
 
 clap_args!(Args {});
 

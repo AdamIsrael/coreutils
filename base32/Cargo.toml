@@ -8,3 +8,7 @@ edition = "2021"
 [dependencies]
 clap = { workspace = true }
 base32 = "0.4.0"
+coreutils = { workspace = true }
+tabled = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

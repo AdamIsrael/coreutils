@@ -8,10 +8,9 @@ use std::process;
 
 use blake2::{Blake2b512, Digest};
 use clap::{Arg, ArgAction, arg};
-// use serde_json::{Map, Value, json};
 use tabled::{builder::Builder, settings::Style};
 
-use stdlib::{clap_args, clap_base_command};
+use coreutils::{clap_args, clap_base_command};
 
 clap_args!(Args {
     flag check: bool,

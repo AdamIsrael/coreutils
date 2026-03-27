@@ -5,29 +5,50 @@ use std::io::ErrorKind;
 use std::process;
 use std::str;
 
-use clap::Parser;
+use clap::{arg, Arg, ArgAction};
+// use tabled::{builder::Builder, settings::Style};
 
-#[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
-struct Args {
-    /// decode data
-    #[arg(short, long)]
-    decode: bool,
+use coreutils::{clap_args, clap_base_command};
 
-    /// when decoding, ignore non-alphabet characters
-    #[arg(short, long)]
-    ignore_garbage: bool,
+clap_args!(Args {
+    flag decode: bool,
+    flag ignore_garbage: bool,
+    value(76) wrap: i32,
+    value("".to_string()) file: String,
+});
 
-    #[arg(short, long, default_value_t = 76)]
-    wrap: i32,
+// #[derive(Parser, Debug)]
+// #[command(author, version, about, long_about = None)]
+// struct Args {
+//     /// decode data
+//     #[arg(short, long)]
+//     decode: bool,
 
-    /// accept a single filename
-    #[clap(default_value_t)]
-    file: String,
-}
+//     /// when decoding, ignore non-alphabet characters
+//     #[arg(short, long)]
+//     ignore_garbage: bool,
+
+//     #[arg(short, long, default_value_t = 76)]
+//     wrap: i32,
+
+//     /// accept a single filename
+//     #[clap(default_value_t)]
+//     file: String,
+// }
 
 fn main() {
-    let args = Args::parse();
+    let matches = clap_base_command()
+        .arg(arg!(-d --decode "decode data"))
+        .arg(arg!(-i --ignore_garbage "ignore non-alphabet characters when decoding"))
+        .arg(arg!(-w --wrap <LENGTH> "wrap output lines after LENGTH characters"))
+        .arg(
+            Arg::new("file")
+                .action(ArgAction::Set)
+                .help("the name of the file to read from"),
+        )
+        .get_matches();
+
+    let args = Args::from_matches(&matches);
 
     let retval = run(&args);
 
