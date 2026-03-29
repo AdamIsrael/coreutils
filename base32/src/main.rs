@@ -1,82 +1,109 @@
 use std::fs::read_to_string;
 use std::io;
 use std::io::prelude::*;
-use std::io::ErrorKind;
+use std::io::{Error, ErrorKind};
 use std::process;
 use std::str;
 
-use clap::Parser;
+use clap::{Arg, ArgAction, arg};
+use serde_json::json;
+use tabled::{builder::Builder, settings::Style, settings::Width};
 
-#[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
-struct Args {
-    /// decode data
-    #[arg(short, long)]
-    decode: bool,
+use coreutils::{clap_args, clap_base_command};
 
-    /// when decoding, ignore non-alphabet characters
-    #[arg(short, long)]
-    ignore_garbage: bool,
+const ALPHABET: base32::Alphabet = base32::Alphabet::RFC4648 { padding: false };
+const DEFAULT_WRAP: i32 = 76;
 
-    #[arg(short, long, default_value_t = 76)]
-    wrap: i32,
-
-    /// accept a single filename
-    #[clap(default_value_t)]
-    file: String,
-}
+clap_args!(Args {
+    flag decode: bool,
+    flag ignore_garbage: bool,
+    value(DEFAULT_WRAP) wrap: i32,
+    maybe file: Option<String>,
+});
 
 fn main() {
-    let args = Args::parse();
+    let matches = clap_base_command()
+        .arg(arg!(-d --decode "decode data"))
+        .arg(
+            Arg::new("ignore_garbage")
+                .long("ignore-garbage")
+                .action(ArgAction::SetTrue)
+                .help("ignore non-alphabet characters when decoding"),
+        )
+        .arg(arg!(-w --wrap <LENGTH> "wrap output lines after LENGTH characters (plain, table)"))
+        .arg(
+            Arg::new("file")
+                .action(ArgAction::Set)
+                .help("the name of the file to read from"),
+        )
+        .get_matches();
+
+    let args = Args::from_matches(&matches);
 
     let retval = run(&args);
 
     process::exit(retval);
 }
 
-fn run(args: &Args) -> i32 {
-    let retval = 0;
-
-    if !args.file.is_empty() {
-        let hash = match base32_file(args, args.file.to_string()) {
-            Err(why) => {
-                println!("base32: {why}");
-                return 1;
-            }
-            Ok(hash) => hash,
-        };
-        println!("{hash}");
+/// Compute the base32 hash of the input data
+fn compute(args: &Args) -> Result<String, Error> {
+    if let Some(ref file) = args.file {
+        return base32_file(args, file);
+    }
+    let mut buf = String::new();
+    io::stdin().lock().read_to_string(&mut buf).unwrap();
+    buf = buf.trim().to_string();
+    if args.decode {
+        remove_newlines(&mut buf);
+        if args.ignore_garbage {
+            ignore_garbage(&mut buf);
+        }
+        decode_base32_string(&buf)
     } else {
-        let stdin = io::stdin();
-        let mut buf = String::new();
+        Ok(encode_base32_string(&buf))
+    }
+}
 
-        // Slurp the data from stdin
-        stdin.lock().read_to_string(&mut buf).unwrap();
-
-        // Trim the whitespace. We've got a trailing newline
-        buf = buf.trim().to_string();
-
-        if args.decode {
-            // Remove the newlines from the wrapped string
-            remove_newlines(&mut buf);
-            if args.ignore_garbage {
-                ignore_garbage(&mut buf);
+/// Run the base32 command with the given arguments
+fn run(args: &Args) -> i32 {
+    match compute(args) {
+        Ok(hash) => {
+            if let Some(output) = &args.output {
+                match output.as_str() {
+                    "table" => {
+                        let mut builder = Builder::new();
+                        builder.push_column(["base32"]);
+                        builder.push_record([hash]);
+                        let mut table = builder.build();
+                        println!(
+                            "{}",
+                            table
+                                .with(Style::rounded())
+                                .with(Width::wrap(get_wrap(args) as usize))
+                        );
+                    }
+                    "json" => {
+                        let output = json!({
+                            "base32": hash,
+                        });
+                        println!("{}", serde_json::to_string(&output).unwrap());
+                    }
+                    "yaml" => println!("base32: \"{hash}\""),
+                    _ => println!("{}", wrap(args, &hash)),
+                }
             }
-
-            let data = decode_base32_string(&buf);
-
-            println!("{data}");
-        } else {
-            output(args, encode_base32_string(&buf));
+            0
+        }
+        Err(why) => {
+            eprintln!("{}", why);
+            1
         }
     }
-
-    retval
 }
 
 /// Ignore non-alphabet characters
 fn ignore_garbage(s: &mut String) {
-    *s = str::replace(s, |c: char| !c.is_alphanumeric(), "");
+    *s = str::replace(s, |c: char| !c.is_alphanumeric() && c != '=', "");
 }
 
 /// Remove newlines embedded within the string, most likely from line wrapping.
@@ -84,32 +111,42 @@ fn remove_newlines(s: &mut String) {
     s.retain(|c| c != '\n');
 }
 
-/// Output the string with wrapping
-fn output(args: &Args, data: String) {
+fn get_wrap(args: &Args) -> i32 {
+    if args.wrap > 0 {
+        args.wrap
+    } else {
+        DEFAULT_WRAP
+    }
+}
+
+/// Wrap the hash into multiple lines
+fn wrap(args: &Args, data: &str) -> String {
     // https://users.rust-lang.org/t/solved-how-to-split-string-into-multiple-sub-strings-with-given-length/10542/3
     let lines = data
         .as_bytes()
-        .chunks(args.wrap as usize)
+        .chunks(get_wrap(args) as usize)
         .map(str::from_utf8)
         .collect::<Result<Vec<&str>, _>>()
         .unwrap();
 
-    for line in lines {
-        println!("{line}");
-    }
+    lines.join("\n")
 }
 
 /// Get the base32 of a file
-fn base32_file(args: &Args, filename: String) -> Result<String, ErrorKind> {
+fn base32_file(args: &Args, filename: &str) -> Result<String, Error> {
     let buf = match read_to_string(filename) {
         Err(why) => {
-            return Err(why.kind());
+            let err_not_found = Error::new(
+                ErrorKind::NotFound,
+                format!("base32: '{}': {}", filename, why),
+            );
+            return Err(err_not_found);
         }
         Ok(buf) => buf.trim().to_string(),
     };
 
     let data: String = if args.decode {
-        decode_base32_string(&buf)
+        decode_base32_string(&buf)?
     } else {
         encode_base32_string(&buf)
     };
@@ -117,36 +154,36 @@ fn base32_file(args: &Args, filename: String) -> Result<String, ErrorKind> {
     Ok(data)
 }
 
-fn get_alphabet() -> base32::Alphabet {
-    let alpha: base32::Alphabet = base32::Alphabet::RFC4648 { padding: false };
-
-    alpha
+/// Get the base32 of a String
+fn encode_base32_string(str: &str) -> String {
+    base32::encode(ALPHABET, str.as_bytes())
 }
 
-// Get the base32 of a String
-fn encode_base32_string(str: &String) -> String {
-    let alpha = get_alphabet();
-    base32::encode(alpha, str.as_bytes())
-}
-
-fn decode_base32_string(str: &String) -> String {
-    println!("String: '{}'", str);
-    let alpha = get_alphabet();
-
-    let buf = match base32::decode(alpha, str) {
-        None => panic!("Got none!"),
+/// Decode a base32 string into a String
+fn decode_base32_string(str: &str) -> Result<String, Error> {
+    let buf = match base32::decode(ALPHABET, str) {
+        None => {
+            return Err(Error::new(
+                ErrorKind::InvalidData,
+                "base32: unable to decode",
+            ));
+        }
         Some(buf) => buf,
     };
 
     // after we've stripped garbage from a string, this might fail so we need
     // error checking
     let hash = match str::from_utf8(&buf) {
-        Err(why) => panic!("Error: {why}"),
+        Err(why) => {
+            return Err(Error::new(
+                ErrorKind::InvalidData,
+                format!("base32: {}", why),
+            ));
+        }
         Ok(hash) => hash,
     };
 
-    // let hash = str::from_utf8(&buf).unwrap();
-    hash.to_string()
+    Ok(hash.to_string())
 }
 
 #[cfg(test)]
@@ -157,7 +194,7 @@ mod tests {
     fn test_base32() {
         let hello = String::from("hello, world");
         let hash = encode_base32_string(&hello);
-        assert_eq!(hello, decode_base32_string(&hash));
+        assert_eq!(hello, decode_base32_string(&hash).unwrap());
     }
 
     #[test]
@@ -168,6 +205,6 @@ mod tests {
         );
 
         ignore_garbage(&mut input);
-        assert_eq!("hello, world", decode_base32_string(&input));
+        assert_eq!("hello, world", decode_base32_string(&input).unwrap());
     }
 }

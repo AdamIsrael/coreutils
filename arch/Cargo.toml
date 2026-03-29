@@ -10,5 +10,5 @@ platform-info = "1.0.1"
 clap = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-stdlib = { workspace = true }
+coreutils = { workspace = true }
 tabled = { workspace = true }
