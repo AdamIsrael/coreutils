@@ -26,7 +26,7 @@ This began as, and continues to be, a learning exercise to better understand the
 | b2sum | :white_check_mark: |
 | base32 | :white_check_mark: |
 | base64 | :white_check_mark: |
-| basename | :white_large_square: |
+| basename | :white_check_mark: |
 | cat | :white_large_square: |
 | chcon | :white_large_square: |
 | chgrp | :white_large_square: |
