@@ -25,7 +25,7 @@ This began as, and continues to be, a learning exercise to better understand the
 | arch | :white_check_mark: |
 | b2sum | :white_check_mark: |
 | base32 | :white_check_mark: |
-| base64 | :white_large_square: |
+| base64 | :white_check_mark: |
 | basename | :white_large_square: |
 | cat | :white_large_square: |
 | chcon | :white_large_square: |
