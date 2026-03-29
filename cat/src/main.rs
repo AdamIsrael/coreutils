@@ -1,9 +1,8 @@
 use std::io;
 use std::io::prelude::*;
-use std::str;
+use std::process;
 
 use clap::{Arg, ArgAction};
-// use tabled::{builder::Builder, settings::Style};
 
 use coreutils::{clap_args, clap_base_command};
 
@@ -23,21 +22,21 @@ clap_args!(Args {
 
 impl Args {
     fn tab(&self) -> &'static str {
-        if self.show_tabs { "I" } else { "\t" }
+        if self.show_tabs { "^I" } else { "\t" }
     }
 }
 
 fn main() {
     let matches = clap_base_command()
         .arg(
-            Arg::new("show-all")
+            Arg::new("show_all")
                 .short('A')
                 .long("show-all")
                 .action(ArgAction::SetTrue)
                 .help("equivalent to -vET"),
         )
         .arg(
-            Arg::new("number-nonblank")
+            Arg::new("number_nonblank")
                 .short('b')
                 .long("number-nonblank")
                 .action(ArgAction::SetTrue)
@@ -50,7 +49,7 @@ fn main() {
                 .help("equivalent to -vE"),
         )
         .arg(
-            Arg::new("show-ends")
+            Arg::new("show_ends")
                 .short('E')
                 .long("show-ends")
                 .action(ArgAction::SetTrue)
@@ -64,7 +63,7 @@ fn main() {
                 .help("number all output lines"),
         )
         .arg(
-            Arg::new("squeeze-blank")
+            Arg::new("squeeze_blank")
                 .short('s')
                 .long("squeeze-blank")
                 .action(ArgAction::SetTrue)
@@ -77,7 +76,7 @@ fn main() {
                 .help("equivalent to -vT"),
         )
         .arg(
-            Arg::new("show-tabs")
+            Arg::new("show_tabs")
                 .short('T')
                 .long("show-tabs")
                 .action(ArgAction::SetTrue)
@@ -90,7 +89,7 @@ fn main() {
                 .help("ignored"),
         )
         .arg(
-            Arg::new("show-nonprinting")
+            Arg::new("show_nonprinting")
                 .short('v')
                 .long("show-nonprinting")
                 .action(ArgAction::SetTrue)
@@ -124,7 +123,7 @@ fn main() {
         args.show_tabs = true;
     }
 
-    // let mut blank: i32 = 0;
+    let mut retval = 0;
     let mut line_count: usize = 1;
     let mut stdout = io::stdout().lock();
     let mut stderr = io::stderr().lock();
@@ -138,8 +137,9 @@ fn main() {
         for filename in &args.files {
             let mut file = match std::fs::File::open(filename) {
                 Ok(f) => f,
-                Err(_) => {
-                    println!("cat: {}: No such file or directory", filename);
+                Err(err) => {
+                    retval = 1;
+                    eprintln!("cat: {}: {}", filename, err);
                     continue;
                 }
             };
@@ -150,62 +150,71 @@ fn main() {
 
     stdout.flush().unwrap();
     stderr.flush().unwrap();
+
+    process::exit(retval);
 }
 
 /// Cat a file from argument or stdin
-fn cat<F: Read>(
+fn cat<F: Read, O: Write, E: Write>(
     file: &mut F,
     args: &Args,
     line_count: &mut usize,
-    stdout: &mut std::io::StdoutLock,
-    stderr: &mut std::io::StderrLock,
+    stdout: &mut O,
+    stderr: &mut E,
 ) {
     let mut character_count = 0;
-    let mut last_line_was_blank = false;
+    let mut at_line_start = false;
     let mut in_buffer: [u8; 8 * 8192] = [0; 8 * 8192];
     let mut out_buffer: Vec<u8> = Vec::with_capacity(24 * 8192);
     loop {
-        let n_read = file.read(&mut in_buffer).unwrap();
+        let n_read = match file.read(&mut in_buffer) {
+            Ok(n) => n,
+            Err(err) => {
+                writeln!(stderr, "cat: {err}").ok();
+                break;
+            }
+        };
         if n_read == 0 {
             break;
         }
 
         for &byte in in_buffer[0..n_read].iter() {
+            // Squeeze blank lines: skip before any output (including line numbers)
+            if byte == b'\n' && character_count == 0 && args.squeeze_blank && at_line_start {
+                continue;
+            }
+
             // If we're tracking line numbers, this is where we'll print them out
             if character_count == 0 && (args.number || (args.number_nonblank && byte != b'\n')) {
-                out_buffer
-                    .write_all(format!("{: >6}  ", line_count).as_bytes())
-                    .unwrap();
-
-                last_line_was_blank = true;
+                write!(out_buffer, "{: >6}  ", line_count).unwrap();
             }
 
             match byte {
                 0..=8 | 11..=31 => {
                     if args.show_nonprinting {
-                        push_caret(&mut out_buffer, stderr, byte + 64);
-                        count_character(&mut character_count, args);
+                        push_caret(&mut out_buffer, byte + 64);
+                    } else {
+                        out_buffer.write_all(&[byte]).unwrap();
                     }
+                    character_count += 1;
                 }
                 9 => {
                     out_buffer.write_all(args.tab().as_bytes()).unwrap();
-                    count_character(&mut character_count, args);
+                    character_count += 1;
                 }
                 10 => {
-                    // increment the line count when we find a newline
-                    if character_count > 0 || !args.number_nonblank {
-                        *line_count += 1;
+                    let is_blank = character_count == 0;
+
+                    if is_blank {
+                        at_line_start = true;
+                    } else {
+                        at_line_start = false;
+                        character_count = 0;
                     }
 
-                    if character_count == 0 {
-                        if args.squeeze_blank && last_line_was_blank {
-                            continue;
-                        } else if !last_line_was_blank {
-                            last_line_was_blank = true;
-                        }
-                    } else {
-                        last_line_was_blank = false;
-                        character_count = 0;
+                    // increment line count (skip for blank lines when -b)
+                    if !is_blank || !args.number_nonblank {
+                        *line_count += 1;
                     }
 
                     if args.show_ends {
@@ -216,11 +225,15 @@ fn cat<F: Read>(
                 }
                 32..=126 => {
                     out_buffer.write_all(&[byte]).unwrap();
-                    count_character(&mut character_count, args);
+                    character_count += 1;
                 }
                 127 => {
-                    push_caret(&mut out_buffer, stderr, b'?');
-                    count_character(&mut character_count, args);
+                    if args.show_nonprinting {
+                        push_caret(&mut out_buffer, b'?');
+                    } else {
+                        out_buffer.write_all(&[byte]).unwrap();
+                    }
+                    character_count += 1;
                 }
                 128..=159 => {
                     if args.show_nonprinting {
@@ -229,7 +242,7 @@ fn cat<F: Read>(
                     } else {
                         out_buffer.write_all(&[byte]).unwrap();
                     }
-                    count_character(&mut character_count, args);
+                    character_count += 1;
                 }
                 _ => {
                     if args.show_nonprinting {
@@ -238,7 +251,7 @@ fn cat<F: Read>(
                     } else {
                         out_buffer.write_all(&[byte]).unwrap();
                     }
-                    count_character(&mut character_count, args);
+                    character_count += 1;
                 }
             };
         }
@@ -247,13 +260,132 @@ fn cat<F: Read>(
     }
 }
 
-fn count_character(character_count: &mut usize, args: &Args) {
-    if args.number || args.number_nonblank {
-        *character_count += 1;
-    }
-}
-
-fn push_caret<T: Write>(stdout: &mut T, _stderr: &mut std::io::StderrLock, notation: u8) {
+fn push_caret<T: Write>(stdout: &mut T, notation: u8) {
     stdout.write_all(b"^").unwrap();
     stdout.write_all(&[notation]).unwrap();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Cursor;
+
+    fn default_args() -> Args {
+        Args {
+            show_all: false,
+            number_nonblank: false,
+            e: false,
+            show_ends: false,
+            number: false,
+            squeeze_blank: false,
+            t: false,
+            show_tabs: false,
+            u: false,
+            show_nonprinting: false,
+            files: vec![],
+            output: None,
+        }
+    }
+
+    fn run_cat(input: &[u8], args: &Args) -> String {
+        let mut cursor = Cursor::new(input);
+        let mut stdout = Vec::new();
+        let mut stderr = Vec::new();
+        let mut line_count: usize = 1;
+        cat(&mut cursor, args, &mut line_count, &mut stdout, &mut stderr);
+        String::from_utf8(stdout).unwrap()
+    }
+
+    #[test]
+    fn test_basic() {
+        let output = run_cat(b"hello\nworld\n", &default_args());
+        assert_eq!(output, "hello\nworld\n");
+    }
+
+    #[test]
+    fn test_number_lines() {
+        let mut args = default_args();
+        args.number = true;
+        let output = run_cat(b"a\nb\nc\n", &args);
+        assert_eq!(output, "     1  a\n     2  b\n     3  c\n");
+    }
+
+    #[test]
+    fn test_number_nonblank() {
+        let mut args = default_args();
+        args.number_nonblank = true;
+        let output = run_cat(b"a\n\nb\n", &args);
+        assert_eq!(output, "     1  a\n\n     2  b\n");
+    }
+
+    #[test]
+    fn test_show_ends() {
+        let mut args = default_args();
+        args.show_ends = true;
+        let output = run_cat(b"hello\nworld\n", &args);
+        assert_eq!(output, "hello$\nworld$\n");
+    }
+
+    #[test]
+    fn test_show_tabs() {
+        let mut args = default_args();
+        args.show_tabs = true;
+        let output = run_cat(b"a\tb\n", &args);
+        assert_eq!(output, "a^Ib\n");
+    }
+
+    #[test]
+    fn test_squeeze_blank() {
+        let mut args = default_args();
+        args.squeeze_blank = true;
+        let output = run_cat(b"a\n\n\n\nb\n", &args);
+        assert_eq!(output, "a\n\nb\n");
+    }
+
+    // Regression: squeeze_blank must not skip non-blank lines.
+    // Bug #1: the squeeze check inside the character_count > 0 branch
+    // could skip content lines when at_line_start was true.
+    #[test]
+    fn test_squeeze_blank_preserves_content() {
+        let mut args = default_args();
+        args.squeeze_blank = true;
+        let output = run_cat(b"a\n\n\nb\n\n\nc\n", &args);
+        assert_eq!(output, "a\n\nb\n\nc\n");
+    }
+
+    // Regression: with -ns, squeezed blank lines should not be counted.
+    // Bug #2: line_count was incremented before the squeeze check,
+    // so squeezed lines consumed line numbers.
+    #[test]
+    fn test_squeeze_blank_with_number() {
+        let mut args = default_args();
+        args.squeeze_blank = true;
+        args.number = true;
+        let output = run_cat(b"a\n\n\n\nb\n", &args);
+        // GNU cat -ns output: lines 1(a), 2(blank), 3(b)
+        // The squeezed blank lines should not consume line numbers.
+        assert_eq!(output, "     1  a\n     2  \n     3  b\n");
+    }
+
+    // Another squeeze+number edge case: multiple groups of blanks
+    #[test]
+    fn test_squeeze_blank_with_number_multiple_groups() {
+        let mut args = default_args();
+        args.squeeze_blank = true;
+        args.number = true;
+        let output = run_cat(b"a\n\n\nb\n\n\nc\n", &args);
+        assert_eq!(
+            output,
+            "     1  a\n     2  \n     3  b\n     4  \n     5  c\n"
+        );
+    }
+
+    #[test]
+    fn test_show_nonprinting() {
+        let mut args = default_args();
+        args.show_nonprinting = true;
+        // 0x01 = ^A, 0x7f = ^?
+        let output = run_cat(&[0x01, b'a', 0x7f, b'\n'], &args);
+        assert_eq!(output, "^Aa^?\n");
+    }
 }
