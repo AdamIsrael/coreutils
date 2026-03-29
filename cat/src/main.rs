@@ -135,16 +135,23 @@ fn main() {
         cat(&mut stdin, &args, &mut line_count, &mut stdout, &mut stderr);
     } else {
         for filename in &args.files {
-            let mut file = match std::fs::File::open(filename) {
-                Ok(f) => f,
-                Err(err) => {
-                    retval = 1;
-                    eprintln!("cat: {}: {}", filename, err);
-                    continue;
-                }
-            };
+            if filename == "-" {
+                // read from stdin
+                let mut stdin = io::stdin().lock();
 
-            cat(&mut file, &args, &mut line_count, &mut stdout, &mut stderr);
+                cat(&mut stdin, &args, &mut line_count, &mut stdout, &mut stderr);
+            } else {
+                let mut file = match std::fs::File::open(filename) {
+                    Ok(f) => f,
+                    Err(err) => {
+                        retval = 1;
+                        eprintln!("cat: {}: {}", filename, err);
+                        continue;
+                    }
+                };
+
+                cat(&mut file, &args, &mut line_count, &mut stdout, &mut stderr);
+            }
         }
     }
 
@@ -163,7 +170,7 @@ fn cat<F: Read, O: Write, E: Write>(
     stderr: &mut E,
 ) {
     let mut character_count = 0;
-    let mut at_line_start = false;
+    let mut prev_line_start = false;
     let mut in_buffer: [u8; 8 * 8192] = [0; 8 * 8192];
     let mut out_buffer: Vec<u8> = Vec::with_capacity(24 * 8192);
     loop {
@@ -180,7 +187,7 @@ fn cat<F: Read, O: Write, E: Write>(
 
         for &byte in in_buffer[0..n_read].iter() {
             // Squeeze blank lines: skip before any output (including line numbers)
-            if byte == b'\n' && character_count == 0 && args.squeeze_blank && at_line_start {
+            if byte == b'\n' && character_count == 0 && args.squeeze_blank && prev_line_start {
                 continue;
             }
 
@@ -206,9 +213,9 @@ fn cat<F: Read, O: Write, E: Write>(
                     let is_blank = character_count == 0;
 
                     if is_blank {
-                        at_line_start = true;
+                        prev_line_start = true;
                     } else {
-                        at_line_start = false;
+                        prev_line_start = false;
                         character_count = 0;
                     }
 
@@ -344,7 +351,7 @@ mod tests {
 
     // Regression: squeeze_blank must not skip non-blank lines.
     // Bug #1: the squeeze check inside the character_count > 0 branch
-    // could skip content lines when at_line_start was true.
+    // could skip content lines when prev_line_start was true.
     #[test]
     fn test_squeeze_blank_preserves_content() {
         let mut args = default_args();
