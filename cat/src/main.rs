@@ -2,66 +2,108 @@ use std::io;
 use std::io::prelude::*;
 use std::str;
 
-use clap::Parser;
+use clap::{Arg, ArgAction};
+// use tabled::{builder::Builder, settings::Style};
 
-#[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
-struct Args {
-    /// equivalent to -vET
-    #[arg(short = 'A', long)]
-    show_all: bool,
+use coreutils::{clap_args, clap_base_command};
 
-    /// number nonempty output lines, overrides -n
-    #[arg(short = 'b', long)]
-    number_nonblank: bool,
-
-    /// equivalent to -vE
-    #[arg(short = 'e')]
-    e: bool,
-
-    /// display $ at the end of each line
-    #[arg(short = 'E', long)]
-    show_ends: bool,
-
-    /// number all output lines
-    #[arg(short = 'n', long)]
-    number: bool,
-
-    /// suppress repeated empty output lines
-    #[arg(short, long)]
-    squeeze_blank: bool,
-
-    /// equivalent to -vT
-    #[arg(short = 't')]
-    t: bool,
-
-    /// display TAB characters as ^I
-    #[arg(short = 'T', long)]
-    show_tabs: bool,
-
-    /// ignored
-    #[arg(short)]
-    u: bool,
-
-    /// use ^ and M- notation, except for LFD and  TAB
-    #[arg(short = 'v', long)]
-    show_nonprinting: bool,
-
-    files: Vec<String>,
-}
+clap_args!(Args {
+    flag show_all: bool,
+    flag number_nonblank: bool,
+    flag e: bool,
+    flag show_ends: bool,
+    flag number: bool,
+    flag squeeze_blank: bool,
+    flag t: bool,
+    flag show_tabs: bool,
+    flag u: bool,
+    flag show_nonprinting: bool,
+    multi files: Vec<String>,
+});
 
 impl Args {
     fn tab(&self) -> &'static str {
-        if self.show_tabs {
-            "I"
-        } else {
-            "\t"
-        }
+        if self.show_tabs { "I" } else { "\t" }
     }
 }
 
 fn main() {
-    let mut args = Args::parse();
+    let matches = clap_base_command()
+        .arg(
+            Arg::new("show-all")
+                .short('A')
+                .long("show-all")
+                .action(ArgAction::SetTrue)
+                .help("equivalent to -vET"),
+        )
+        .arg(
+            Arg::new("number-nonblank")
+                .short('b')
+                .long("number-nonblank")
+                .action(ArgAction::SetTrue)
+                .help("number nonempty output lines, overrides -n"),
+        )
+        .arg(
+            Arg::new("e")
+                .short('e')
+                .action(ArgAction::SetTrue)
+                .help("equivalent to -vE"),
+        )
+        .arg(
+            Arg::new("show-ends")
+                .short('E')
+                .long("show-ends")
+                .action(ArgAction::SetTrue)
+                .help("display $ at the end of each line"),
+        )
+        .arg(
+            Arg::new("number")
+                .short('n')
+                .long("number")
+                .action(ArgAction::SetTrue)
+                .help("number all output lines"),
+        )
+        .arg(
+            Arg::new("squeeze-blank")
+                .short('s')
+                .long("squeeze-blank")
+                .action(ArgAction::SetTrue)
+                .help("suppress repeated empty output lines"),
+        )
+        .arg(
+            Arg::new("t")
+                .short('t')
+                .action(ArgAction::SetTrue)
+                .help("equivalent to -vT"),
+        )
+        .arg(
+            Arg::new("show-tabs")
+                .short('T')
+                .long("show-tabs")
+                .action(ArgAction::SetTrue)
+                .help("display TAB characters as ^I"),
+        )
+        .arg(
+            Arg::new("u")
+                .short('u')
+                .action(ArgAction::SetTrue)
+                .help("ignored"),
+        )
+        .arg(
+            Arg::new("show-nonprinting")
+                .short('v')
+                .long("show-nonprinting")
+                .action(ArgAction::SetTrue)
+                .help("use ^ and M- notation, except for LFD and  TAB"),
+        )
+        .arg(
+            Arg::new("files")
+                .action(ArgAction::Append)
+                .help("the file(s) to concatenate"),
+        )
+        .get_matches();
+
+    let mut args = Args::from_matches(&matches);
 
     // do shortcut: -A
     if args.show_all {
