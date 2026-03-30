@@ -457,9 +457,6 @@ mod tests {
         cat(&mut file2, &args, &mut line_count, &mut stdout, &mut stderr);
 
         let output = String::from_utf8(stdout).unwrap();
-        assert_eq!(
-            output,
-            "     1  a\n     2  b\n     3  c\n     4  d\n"
-        );
+        assert_eq!(output, "     1  a\n     2  b\n     3  c\n     4  d\n");
     }
 }
