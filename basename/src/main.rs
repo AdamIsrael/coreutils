@@ -9,7 +9,6 @@ clap_args!(Args {
     flag multiple: bool,
     maybe suffix: Option<String>,
     multi args: Vec<String>,
-
 });
 
 /// usage: basename string [suffix]

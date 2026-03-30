@@ -27,7 +27,7 @@ This began as, and continues to be, a learning exercise to better understand the
 | base32 | :white_check_mark: |
 | base64 | :white_check_mark: |
 | basename | :white_check_mark: |
-| cat | :white_large_square: |
+| cat | :white_check_mark: |
 | chcon | :white_large_square: |
 | chgrp | :white_large_square: |
 | chmod | :white_large_square: |
