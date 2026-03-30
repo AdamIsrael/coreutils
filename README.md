@@ -43,7 +43,7 @@ This began as, and continues to be, a learning exercise to better understand the
 | df | :white_large_square: |
 | dir | :white_large_square: |
 | dircolors | :white_large_square: |
-| dirname | :white_large_square: |
+| dirname | :white_check_mark: |
 | du | :white_large_square: |
 | echo | :white_large_square: |
 | env | :white_large_square: |
