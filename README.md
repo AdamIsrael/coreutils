@@ -45,7 +45,7 @@ This began as, and continues to be, a learning exercise to better understand the
 | dircolors | :white_large_square: |
 | dirname | :white_check_mark: |
 | du | :white_large_square: |
-| echo | :white_large_square: |
+| echo | :white_check_mark: |
 | env | :white_large_square: |
 | expand | :white_large_square: |
 | expr | :white_large_square: |
