@@ -259,10 +259,18 @@ fn cat<F: Read, O: Write, E: Write>(
                     }
                     character_count += 1;
                 }
-                _ => {
+                160..=254 => {
                     if args.show_nonprinting {
                         out_buffer.write_all(b"M-").unwrap();
                         out_buffer.write_all(&[byte - 128]).unwrap();
+                    } else {
+                        out_buffer.write_all(&[byte]).unwrap();
+                    }
+                    character_count += 1;
+                }
+                255 => {
+                    if args.show_nonprinting {
+                        out_buffer.write_all(b"M-^?").unwrap();
                     } else {
                         out_buffer.write_all(&[byte]).unwrap();
                     }
@@ -402,5 +410,56 @@ mod tests {
         // 0x01 = ^A, 0x7f = ^?
         let output = run_cat(&[0x01, b'a', 0x7f, b'\n'], &args);
         assert_eq!(output, "^Aa^?\n");
+    }
+
+    #[test]
+    fn test_empty_input() {
+        let output = run_cat(b"", &default_args());
+        assert_eq!(output, "");
+    }
+
+    #[test]
+    fn test_no_trailing_newline() {
+        let output = run_cat(b"hello", &default_args());
+        assert_eq!(output, "hello");
+    }
+
+    #[test]
+    fn test_squeeze_blank_with_number_nonblank() {
+        let mut args = default_args();
+        args.squeeze_blank = true;
+        args.number_nonblank = true;
+        let output = run_cat(b"a\n\n\n\nb\n\n\nc\n", &args);
+        assert_eq!(output, "     1  a\n\n     2  b\n\n     3  c\n");
+    }
+
+    #[test]
+    fn test_show_nonprinting_high_bytes() {
+        let mut args = default_args();
+        args.show_nonprinting = true;
+        // 128 (0x80) = M-^@, 159 (0x9f) = M-^_, 160 (0xa0) = M- , 255 (0xff) = M-^?
+        let output = run_cat(&[128, 159, 160, 255, b'\n'], &args);
+        assert_eq!(output, "M-^@M-^_M- M-^?\n");
+    }
+
+    #[test]
+    fn test_line_count_persists_across_files() {
+        let mut args = default_args();
+        args.number = true;
+        let mut stdout = Vec::new();
+        let mut stderr = Vec::new();
+        let mut line_count: usize = 1;
+
+        let mut file1 = Cursor::new(b"a\nb\n" as &[u8]);
+        cat(&mut file1, &args, &mut line_count, &mut stdout, &mut stderr);
+
+        let mut file2 = Cursor::new(b"c\nd\n" as &[u8]);
+        cat(&mut file2, &args, &mut line_count, &mut stdout, &mut stderr);
+
+        let output = String::from_utf8(stdout).unwrap();
+        assert_eq!(
+            output,
+            "     1  a\n     2  b\n     3  c\n     4  d\n"
+        );
     }
 }
