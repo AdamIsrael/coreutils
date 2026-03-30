@@ -10,11 +10,12 @@ This began as, and continues to be, a learning exercise to better understand the
 
 ## Design goals
 
-- all commands should support output formatting: plain, table, json and yaml to allow them to be more easily consumed by automation, CI, and AI.
+- Commands should support output formatting where applicable: plain, table, json and yaml to allow them to be more easily consumed by automation, CI, and AI.
+- All commands should support standard flags: --help, --version
 
 ## TODO
 
-- Finish refactor of completed commands (to use stdlib and follow modern approach)
+- Finish refactor of completed commands (to use shared library for easier clap implementation and follow a modern approach/best practices)
 - for easier testing, a way to temporarily add the project binaries into the current path.
   - add `just shell` target
 
