@@ -100,6 +100,14 @@ fn main() {
                 .action(ArgAction::Append)
                 .help("the file(s) to concatenate"),
         )
+        .mut_args(|a| {
+            // Hide the base --output argument, since it doesn't make sense for `cat`.
+            if a.get_id() == "output" {
+                a.hide(true)
+            } else {
+                a
+            }
+        })
         .get_matches();
 
     let mut args = Args::from_matches(&matches);
